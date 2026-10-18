@@ -454,7 +454,7 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
 
             <div className="py-3 px-5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <span>{filteredMaquinas.length} máquinas/veículos listados</span>
-              <span>Propriedade: Fazenda Santa Maria</span>
+              <span>Propriedade: {user?.fazenda || 'Minha Propriedade'}</span>
             </div>
           </div>
         </main>

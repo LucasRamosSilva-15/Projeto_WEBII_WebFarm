@@ -360,9 +360,9 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
           title,
           `Período de Referência: ${periodo}`,
           {
-            'Propriedade': 'Fazenda Santa Maria',
+            'Propriedade': user?.fazenda || 'Minha Propriedade',
             'Total de Registros': rows.length,
-            'Emitido por': user?.name || 'Administrador WebFarm',
+            'Emitido por': user?.nome || user?.name || 'Administrador WebFarm',
             'Status': 'Validado & Conciliado'
           },
           headers,
@@ -732,7 +732,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
 
                 <div className="py-3 px-5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                   <span>{filteredLogs.length} atividades auditadas exibidas</span>
-                  <span>Fazenda Santa Maria • Segurança Ativa</span>
+                  <span>{user?.fazenda || 'Minha Propriedade'} • Segurança Ativa</span>
                 </div>
               </div>
             ) : (

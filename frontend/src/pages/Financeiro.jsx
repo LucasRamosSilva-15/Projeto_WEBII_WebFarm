@@ -413,7 +413,7 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
 
             <div className="py-3 px-5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <span>{filteredMovimentacoes.length} lançamentos exibidos</span>
-              <span>Propriedade: Fazenda Santa Maria</span>
+              <span>Propriedade: {user?.fazenda || 'Minha Propriedade'}</span>
             </div>
           </div>
         </main>

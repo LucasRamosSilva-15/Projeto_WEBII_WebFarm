@@ -34,6 +34,12 @@ export function exportToJSON(filename, data) {
 }
 
 export function exportToPrintableReport(title, subtitle, metadata = {}, headers = [], rows = []) {
+  let farmName = metadata['Propriedade'] || 'Minha Propriedade';
+  try {
+    const session = JSON.parse(localStorage.getItem('webfarm_auth_session') || '{}');
+    if (session.fazenda) farmName = session.fazenda;
+  } catch {}
+
   const printWindow = window.open('', '_blank', 'width=1000,height=750');
   if (!printWindow) {
     alert('Por favor, permita pop-ups para gerar a impressão do relatório.');
@@ -91,7 +97,7 @@ export function exportToPrintableReport(title, subtitle, metadata = {}, headers 
       <div class="header">
         <div>
           <div class="brand">🌱 WebFarm 2.0</div>
-          <div class="tagline">Gestão Agropecuária Inteligente • Fazenda Santa Maria</div>
+          <div class="tagline">Gestão Agropecuária Inteligente • ${farmName}</div>
           <div class="report-title">${title}</div>
           <div class="report-sub">${subtitle}</div>
         </div>
@@ -114,7 +120,7 @@ export function exportToPrintableReport(title, subtitle, metadata = {}, headers 
       </table>
 
       <div class="footer">
-        <div>Documento gerado automaticamente pelo sistema WebFarm 2.0 • Propriedade de Fazenda Santa Maria</div>
+        <div>Documento gerado automaticamente pelo sistema WebFarm 2.0 • Propriedade de ${farmName}</div>
         <div>Página 1 de 1 • Registro Válido</div>
       </div>
 
