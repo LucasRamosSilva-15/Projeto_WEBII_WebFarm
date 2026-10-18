@@ -21,7 +21,9 @@ import {
   Trash2,
   FileSpreadsheet,
   Activity,
-  List
+  List,
+  RefreshCw,
+  ArrowUpDown
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
@@ -31,58 +33,13 @@ import { api } from '../services/api';
 import { exportToCSV, exportToJSON, exportToPrintableReport } from '../services/exportService';
 
 export default function Relatorios({ onNavigate, onLogout, user }) {
-  const [modelosRelatorios] = useState([
-    {
-      id: 1,
-      titulo: 'DRE & Fluxo de Caixa Consolidado',
-      modulo: 'Financeiro',
-      periodo: 'Safra Atual 24/25',
-      formato: 'PDF & XLSX',
-      tamanho: '2.4 MB',
-      icon: TrendingUp,
-      descricao: 'Demonstrativo de resultado com entradas de comercialização, compras de insumos e margem operacional.'
-    },
-    {
-      id: 2,
-      titulo: 'Inventário e Rastreabilidade do Rebanho',
-      modulo: 'Pecuária',
-      periodo: 'Outubro / 2025',
-      formato: 'PDF',
-      tamanho: '1.8 MB',
-      icon: Layers,
-      descricao: 'Listagem de 1.240 animais com código de brinco, curva de peso, vacinas e lotes de corte/leite.'
-    },
-    {
-      id: 3,
-      titulo: 'Caderno de Campo & Manejo de Talhões',
-      modulo: 'Safra',
-      periodo: 'Ciclo 2024/2025',
-      formato: 'PDF & XLSX',
-      tamanho: '3.1 MB',
-      icon: Wheat,
-      descricao: 'Histórico de semeadura, desenvolvimento vegetativo, dessecação e produtividade estimada por talhão.'
-    },
-    {
-      id: 4,
-      titulo: 'Horímetro & Manutenção Preventiva da Frota',
-      modulo: 'Maquinários',
-      periodo: 'Últimos 90 dias',
-      formato: 'PDF',
-      tamanho: '1.2 MB',
-      icon: Truck,
-      descricao: 'Quadro geral de tratores e colheitadeiras, controle de troca de óleo, revisões e custos com diesel.'
-    },
-    {
-      id: 5,
-      titulo: 'Folha de Equipe & Diárias Rurais',
-      modulo: 'Equipe',
-      periodo: 'Mensal',
-      formato: 'XLSX',
-      tamanho: '850 KB',
-      icon: Users,
-      descricao: 'Relação de operadores, vaqueiros, diárias de campo, atestados e controle de permissões no sistema.'
-    }
-  ]);
+  const [metricas, setMetricas] = useState({
+    animais: 0,
+    maquinas: 0,
+    funcionarios: 0,
+    talhoes: 0,
+    financeiro: { totalEntradas: 0, totalSaidas: 0, saldoLiquido: 0 }
+  });
 
   const [historicoLogs, setHistoricoLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,33 +48,95 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('novoLog');
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const [formData, setFormData] = useState({
     modulo: 'Financeiro',
-    responsavel: 'Lucas Ramos',
+    responsavel: user?.nome || 'Administrador WebFarm',
     acao: '',
     detalhes: '',
     data: ''
   });
 
   const [relatorioCustom, setRelatorioCustom] = useState({
-    tipo: 'Financeiro & Fluxo de Caixa',
+    tipo: 'DRE & Fluxo de Caixa Financeiro',
     periodo: 'Safra Atual 2024/2025',
     formato: 'PDF',
     incluirAuditoria: true
   });
 
-  const totalRelatoriosEmitidos = modelosRelatorios.length + 23;
-  const totalLogs = historicoLogs.length;
+  const modelosRelatorios = [
+    {
+      id: 1,
+      titulo: 'DRE & Fluxo de Caixa Consolidado',
+      modulo: 'Financeiro',
+      periodo: 'Safra Atual',
+      formato: 'PDF & CSV',
+      tamanho: `${Math.max(1, Math.round((Number(metricas.financeiro.totalEntradas || 0) + Number(metricas.financeiro.totalSaidas || 0)) / 1000))} KB`,
+      icon: TrendingUp,
+      descricao: `Demonstrativo com ${metricas.financeiro.totalEntradas > 0 ? `R$ ${Number(metricas.financeiro.totalEntradas).toLocaleString('pt-BR')} em receitas` : 'fluxo de receitas e despesas'} e margem operacional.`
+    },
+    {
+      id: 2,
+      titulo: 'Inventário e Rastreabilidade do Rebanho',
+      modulo: 'Pecuária',
+      periodo: 'Mês Atual',
+      formato: 'PDF & CSV',
+      tamanho: `${Math.max(1, metricas.animais * 2)} KB`,
+      icon: Layers,
+      descricao: `Listagem com ${metricas.animais} ${metricas.animais === 1 ? 'animal registrado' : 'animais registrados'}, código de brinco, peso e controle zootécnico.`
+    },
+    {
+      id: 3,
+      titulo: 'Caderno de Campo & Manejo de Talhões',
+      modulo: 'Safra',
+      periodo: 'Safra Atual',
+      formato: 'PDF & CSV',
+      tamanho: `${Math.max(1, metricas.talhoes * 3)} KB`,
+      icon: Wheat,
+      descricao: `Acompanhamento de ${metricas.talhoes} ${metricas.talhoes === 1 ? 'talhão agrícola' : 'talhões agrícolas'} com semeadura, variedade e colheita.`
+    },
+    {
+      id: 4,
+      titulo: 'Horímetro & Manutenção Preventiva da Frota',
+      modulo: 'Maquinários',
+      periodo: 'Últimos 90 dias',
+      formato: 'PDF & CSV',
+      tamanho: `${Math.max(1, metricas.maquinas * 2)} KB`,
+      icon: Truck,
+      descricao: `Inventário de ${metricas.maquinas} ${metricas.maquinas === 1 ? 'máquina/veículo' : 'máquinas/veículos'}, controle de revisões e horímetro de operação.`
+    },
+    {
+      id: 5,
+      titulo: 'Folha de Equipe & Colaboradores',
+      modulo: 'Equipe',
+      periodo: 'Mensal',
+      formato: 'PDF & CSV',
+      tamanho: `${Math.max(1, metricas.funcionarios * 2)} KB`,
+      icon: Users,
+      descricao: `Quadro com ${metricas.funcionarios} ${metricas.funcionarios === 1 ? 'colaborador registrado' : 'colaboradores registrados'}, cargos operacionais e conformidade de RH.`
+    }
+  ];
 
   const loadHistorico = async () => {
     try {
-      const data = await api.historico.getAll();
-      if (Array.isArray(data)) {
-        setHistoricoLogs(data);
+      setLoading(true);
+      const [dataLogs, dataMetricas] = await Promise.all([
+        api.historico.getAll().catch(() => []),
+        api.dashboard.getMetricas().catch(() => null)
+      ]);
+
+      if (Array.isArray(dataLogs)) {
+        setHistoricoLogs(dataLogs);
+      }
+      if (dataMetricas) {
+        setMetricas(dataMetricas);
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,7 +148,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     setModalType('novoLog');
     setFormData({
       modulo: 'Financeiro',
-      responsavel: user?.nome || 'Lucas Ramos',
+      responsavel: user?.nome || 'Administrador WebFarm',
       acao: '',
       detalhes: '',
       data: new Date().toLocaleString('pt-BR')
@@ -165,7 +184,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
 
     const payload = {
       ...formData,
-      responsavel: user?.name || formData.responsavel || 'Administrador WebFarm',
+      responsavel: user?.nome || formData.responsavel || 'Administrador WebFarm',
       data: formData.data || new Date().toLocaleString('pt-BR'),
       protocolo: `WF-${formData.modulo.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`
     };
@@ -179,94 +198,100 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     }
   };
 
-  const handleDownloadModelo = async (rel) => {
+  const handleDownloadModelo = async (rel, format = 'csv') => {
     try {
+      let headers = [];
+      let rows = [];
+      const title = rel.titulo;
+      const filename = `WebFarm_${rel.modulo}_${new Date().toISOString().slice(0, 10)}`;
+
       if (rel.id === 1) {
         const transacoes = await api.transacoes.getAll();
-        const headers = ['ID', 'Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Status', 'Comprovante'];
-        const rows = transacoes.map((t) => [
+        headers = ['ID', 'Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Status', 'Comprovante'];
+        rows = transacoes.map((t) => [
           t.id,
           t.data,
-          t.tipo.toUpperCase(),
+          String(t.tipo || '').toUpperCase(),
           t.categoria,
           t.descricao,
           Number(t.valor || 0).toFixed(2),
-          t.status,
+          t.status || 'Confirmado',
           t.comprovante || '-'
         ]);
-        exportToCSV('WebFarm_DRE_Fluxo_Caixa.csv', headers, rows);
       } else if (rel.id === 2) {
         const animais = await api.animais.getAll();
-        const headers = ['ID', 'Código Brinco', 'Espécie', 'Raça', 'Sexo', 'Peso (kg)', 'Status', 'Origem'];
-        const rows = animais.map((a) => [
+        headers = ['ID', 'Código Brinco', 'Espécie', 'Raça', 'Sexo', 'Peso (kg)', 'Status', 'Origem'];
+        rows = animais.map((a) => [
           a.id,
           a.codigo_brinco,
           a.especie,
-          a.raca,
-          a.sexo,
+          a.raca || '-',
+          a.sexo || '-',
           a.peso,
-          a.status,
-          a.origem
+          a.status || 'Ativo',
+          a.origem || 'Própria'
         ]);
-        exportToCSV('WebFarm_Inventario_Rebanho.csv', headers, rows);
       } else if (rel.id === 3) {
         const producoes = await api.producoes.getAll();
-        const headers = ['ID', 'Talhão / Lote', 'Cultura', 'Variedade', 'Área (ha)', 'Data Plantio', 'Estágio', 'Previsão Colheita', 'Produtividade Estimada', 'Status'];
-        const rows = producoes.map((p) => [
+        headers = ['ID', 'Talhão / Lote', 'Cultura', 'Variedade', 'Área (ha)', 'Data Plantio', 'Estágio', 'Previsão Colheita', 'Produtividade Estimada', 'Status'];
+        rows = producoes.map((p) => [
           p.id,
           p.nome,
           p.cultura,
           p.variedade || '-',
-          p.areaHa,
-          p.dataPlantio,
-          p.estagio,
+          p.areaHa || p.area_plantada || 0,
+          p.dataPlantio || '-',
+          p.estagio || '-',
           p.previsaoColheita || '-',
           p.produtividadeEstimada || '-',
-          p.status
+          p.status || 'Ativo'
         ]);
-        exportToCSV('WebFarm_Caderno_Campo_Safra.csv', headers, rows);
       } else if (rel.id === 4) {
         const maquinas = await api.maquinas.getAll();
-        const headers = ['ID', 'Prefixo', 'Tipo', 'Marca', 'Modelo', 'Ano', 'Horímetro (hrs)', 'Status', 'Operador', 'Última Revisão', 'Próxima Revisão'];
-        const rows = maquinas.map((m) => [
+        headers = ['ID', 'Prefixo', 'Tipo', 'Marca', 'Modelo', 'Ano', 'Horímetro (hrs)', 'Status', 'Operador', 'Última Revisão', 'Próxima Revisão'];
+        rows = maquinas.map((m) => [
           m.id,
           m.prefixo,
           m.tipo,
-          m.marca,
-          m.modelo,
-          m.ano,
-          m.horimetro,
-          m.status,
+          m.marca || '-',
+          m.modelo || '-',
+          m.ano || '-',
+          m.horimetro || 0,
+          m.status || 'Operacional',
           m.operador || '-',
           m.ultimaRevisao || '-',
           m.proximaRevisao || '-'
         ]);
-        exportToCSV('WebFarm_Frota_Maquinarios.csv', headers, rows);
       } else if (rel.id === 5) {
         const funcionarios = await api.funcionarios.getAll();
-        const headers = ['ID', 'Nome', 'CPF', 'Função / Cargo', 'Telefone', 'Salário (R$)', 'Status', 'Data Admissão'];
-        const rows = funcionarios.map((f) => [
+        headers = ['ID', 'Nome', 'CPF', 'Função / Cargo', 'Telefone', 'Salário (R$)', 'Status', 'Data Admissão'];
+        rows = funcionarios.map((f) => [
           f.id,
           f.nome,
           f.cpf,
           f.funcao,
-          f.cell,
+          f.cell || '-',
           Number(f.salario || 0).toFixed(2),
-          f.status,
-          f.data_admissao
+          f.status || 'Ativo',
+          f.data_admissao || '-'
         ]);
-        exportToCSV('WebFarm_Folha_Equipe_Rural.csv', headers, rows);
+      }
+
+      if (format === 'pdf') {
+        exportToPrintableReport(
+          title,
+          `Relatório Setorial de ${rel.modulo} • WebFarm`,
+          {
+            'Propriedade': user?.fazenda || 'Minha Propriedade',
+            'Total de Registros': rows.length,
+            'Emitido por': user?.nome || 'Administrador WebFarm',
+            'Data de Emissão': new Date().toLocaleDateString('pt-BR')
+          },
+          headers,
+          rows
+        );
       } else {
-        const headers = ['Data', 'Módulo', 'Ação Realizada', 'Detalhes', 'Responsável', 'Protocolo'];
-        const rows = historicoLogs.map((l) => [
-          l.data,
-          l.modulo,
-          l.acao,
-          l.detalhes,
-          l.responsavel,
-          l.protocolo
-        ]);
-        exportToCSV('WebFarm_Auditoria_Logs.csv', headers, rows);
+        exportToCSV(`${filename}.csv`, headers, rows);
       }
     } catch (err) {
       alert('Erro ao exportar dados: ' + err.message);
@@ -291,11 +316,11 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
         headers = ['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Status'];
         rows = dados.map((t) => [
           t.data,
-          t.tipo.toUpperCase(),
+          String(t.tipo || '').toUpperCase(),
           t.categoria,
           t.descricao,
           `R$ ${Number(t.valor || 0).toLocaleString('pt-BR')}`,
-          t.status
+          t.status || 'Confirmado'
         ]);
       } else if (tipo.includes('Rebanho') || tipo.includes('Pecuária')) {
         const dados = await api.animais.getAll();
@@ -304,11 +329,11 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
         rows = dados.map((a) => [
           a.codigo_brinco,
           a.especie,
-          a.raca,
-          a.sexo,
+          a.raca || '-',
+          a.sexo || '-',
           `${a.peso} kg`,
-          a.status,
-          a.origem
+          a.status || 'Ativo',
+          a.origem || 'Própria'
         ]);
       } else if (tipo.includes('Safra') || tipo.includes('Agrícola')) {
         const dados = await api.producoes.getAll();
@@ -318,10 +343,10 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
           p.nome,
           p.cultura,
           p.variedade || '-',
-          `${p.areaHa} ha`,
-          p.estagio,
+          `${p.areaHa || p.area_plantada || 0} ha`,
+          p.estagio || '-',
           p.previsaoColheita || '-',
-          p.status
+          p.status || 'Ativo'
         ]);
       } else if (tipo.includes('Maquinários') || tipo.includes('Frota')) {
         const dados = await api.maquinas.getAll();
@@ -330,23 +355,48 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
         rows = dados.map((m) => [
           m.prefixo,
           m.tipo,
-          m.marca,
-          m.modelo,
-          `${m.horimetro} hrs`,
-          m.status,
+          m.marca || '-',
+          m.modelo || '-',
+          `${m.horimetro || 0} hrs`,
+          m.status || 'Operacional',
           m.operador || '-'
         ]);
-      } else {
-        rawData = historicoLogs;
-        headers = ['Data', 'Módulo', 'Ação', 'Detalhes', 'Responsável', 'Protocolo'];
-        rows = historicoLogs.map((l) => [
-          l.data,
-          l.modulo,
-          l.acao,
-          l.detalhes,
-          l.responsavel,
-          l.protocolo
+      } else if (tipo.includes('Funcionários') || tipo.includes('Equipe')) {
+        const dados = await api.funcionarios.getAll();
+        rawData = dados;
+        headers = ['Nome', 'CPF', 'Função', 'Telefone', 'Salário', 'Status'];
+        rows = dados.map((f) => [
+          f.nome,
+          f.cpf,
+          f.funcao,
+          f.cell || '-',
+          `R$ ${Number(f.salario || 0).toLocaleString('pt-BR')}`,
+          f.status || 'Ativo'
         ]);
+      } else {
+        const [animais, transacoes, producoes, maquinas, equipe] = await Promise.all([
+          api.animais.getAll().catch(() => []),
+          api.transacoes.getAll().catch(() => []),
+          api.producoes.getAll().catch(() => []),
+          api.maquinas.getAll().catch(() => []),
+          api.funcionarios.getAll().catch(() => [])
+        ]);
+
+        const totalEntradas = transacoes.filter((t) => t.tipo === 'entrada').reduce((a, b) => a + Number(b.valor || 0), 0);
+        const totalSaidas = transacoes.filter((t) => t.tipo === 'saida').reduce((a, b) => a + Number(b.valor || 0), 0);
+        const saldoLiquido = totalEntradas - totalSaidas;
+
+        rawData = { animais, transacoes, producoes, maquinas, equipe };
+        headers = ['Setor', 'Indicador Chave', 'Volume / Montante', 'Situação Operacional'];
+        rows = [
+          ['Pecuária', 'Rebanho Cadastrado', `${animais.length} animais`, 'Monitoramento ativo'],
+          ['Agricultura', 'Talhões de Safra', `${producoes.length} talhões`, 'Ciclo em desenvolvimento'],
+          ['Maquinários', 'Frota e Equipamentos', `${maquinas.length} unidades`, 'Disponibilidade de campo'],
+          ['Recursos Humanos', 'Quadro de Colaboradores', `${equipe.length} pessoas`, 'Folha ativa'],
+          ['Financeiro', 'Faturamento Acumulado', `R$ ${totalEntradas.toLocaleString('pt-BR')}`, 'Receitas conciliadas'],
+          ['Financeiro', 'Custos Operacionais', `R$ ${totalSaidas.toLocaleString('pt-BR')}`, 'Despesas registradas'],
+          ['Financeiro', 'Saldo Líquido', `R$ ${saldoLiquido.toLocaleString('pt-BR')}`, saldoLiquido >= 0 ? 'Superávit' : 'Déficit']
+        ];
       }
 
       const fileName = `WebFarm_${tipo.replace(/[^a-zA-Z0-9]/g, '_')}_${periodo.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -362,7 +412,8 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
           {
             'Propriedade': user?.fazenda || 'Minha Propriedade',
             'Total de Registros': rows.length,
-            'Emitido por': user?.nome || user?.name || 'Administrador WebFarm',
+            'Emitido por': user?.nome || 'Administrador WebFarm',
+            'Data de Emissão': new Date().toLocaleDateString('pt-BR'),
             'Status': 'Validado & Conciliado'
           },
           headers,
@@ -388,17 +439,23 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     exportToCSV('WebFarm_Historico_Auditoria_Completo.csv', headers, rows);
   };
 
-  const filteredLogs = historicoLogs.filter((log) => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      log.acao.toLowerCase().includes(term) ||
-      log.detalhes.toLowerCase().includes(term) ||
-      log.responsavel.toLowerCase().includes(term) ||
-      log.protocolo.toLowerCase().includes(term);
+  const filteredLogs = historicoLogs
+    .filter((log) => {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch =
+        (log.acao || '').toLowerCase().includes(term) ||
+        (log.detalhes || '').toLowerCase().includes(term) ||
+        (log.responsavel || '').toLowerCase().includes(term) ||
+        (log.protocolo || '').toLowerCase().includes(term);
 
-    const matchesModulo = filterModulo === 'todos' || log.modulo === filterModulo;
-    return matchesSearch && matchesModulo;
-  });
+      const matchesModulo = filterModulo === 'todos' || log.modulo === filterModulo;
+      return matchesSearch && matchesModulo;
+    })
+    .sort((a, b) => {
+      const idA = a.id || 0;
+      const idB = b.id || 0;
+      return sortOrder === 'desc' ? idB - idA : idA - idB;
+    });
 
   return (
     <div className="bg-[#f8fafc] text-slate-800 selection:bg-[#237a32]/20 selection:text-[#185824] min-h-screen flex antialiased">
@@ -429,7 +486,18 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={loadHistorico}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-xs cursor-pointer"
+                title="Sincronizar dados e histórico"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#237a32]' : 'text-slate-500'}`} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleOpenAddLogModal}
@@ -438,6 +506,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                 <Plus className="w-4 h-4 text-slate-500" />
                 <span>Registrar Evento</span>
               </button>
+
               <button
                 type="button"
                 onClick={handleOpenGenerateReportModal}
@@ -453,17 +522,17 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
             <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden border-l-4 border-l-[#237a32]">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Relatórios Consolidados
+                  Modelos de Relatórios
                 </span>
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-[#237a32] flex items-center justify-center">
                   <FileText className="w-4 h-4" />
                 </div>
               </div>
               <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                {totalRelatoriosEmitidos} emitidos
+                {modelosRelatorios.length} modelos prontos
               </div>
               <div className="mt-2 text-xs text-slate-500">
-                Disponíveis para exportação em PDF e planilhas
+                Disponíveis para exportação imediata em PDF e CSV
               </div>
             </div>
 
@@ -477,7 +546,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                 </div>
               </div>
               <div className="text-2xl font-extrabold text-[#237a32] tracking-tight">
-                1.482 registros
+                {historicoLogs.length} {historicoLogs.length === 1 ? 'registro' : 'registros'}
               </div>
               <div className="mt-2 text-xs text-emerald-700 font-medium">
                 Rastreabilidade ponta a ponta da fazenda
@@ -487,22 +556,22 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
             <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Conformidade & Auditoria
+                  Propriedade Monitorada
                 </span>
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-[#237a32] flex items-center justify-center">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                100% Em Dia
+              <div className="text-2xl font-extrabold text-slate-900 tracking-tight truncate">
+                {user?.fazenda || 'Propriedade Ativa'}
               </div>
               <div className="mt-2 text-xs text-slate-500 font-medium">
-                Padrões GTA, CAR e boas práticas agronômicas
+                Padrões GTA, CAR e conformidade operacional
               </div>
             </div>
           </div>
 
-          <GraficosDesempenho />
+          <GraficosDesempenho onNavigate={onNavigate} />
 
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -541,18 +610,30 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                       </p>
                     </div>
 
-                    <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-medium text-[11px]">
+                    <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs gap-2">
+                      <span className="text-slate-400 font-medium text-[11px] truncate">
                         {rel.periodo} • {rel.tamanho}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadModelo(rel)}
-                        className="inline-flex items-center gap-1.5 font-bold text-[#237a32] hover:text-[#185824] cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Baixar</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadModelo(rel, 'pdf')}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-[#237a32] bg-slate-50 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          title="Visualizar e Imprimir Relatório"
+                        >
+                          <Printer className="w-3 h-3" />
+                          <span>PDF</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadModelo(rel, 'csv')}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-[#237a32] hover:bg-[#185824] rounded-lg transition-colors shadow-xs cursor-pointer"
+                          title="Baixar planilha CSV"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>CSV</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -571,8 +652,8 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="relative w-full sm:w-64">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative w-full sm:w-60">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
@@ -581,56 +662,48 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-3 py-1.5 bg-white text-xs rounded-xl border border-slate-200 outline-none focus:border-[#237a32] transition-all shadow-xs"
                   />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
-                <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setFilterModulo('todos')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${filterModulo === 'todos'
-                      ? 'bg-[#237a32] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                  >
-                    Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilterModulo('Financeiro')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${filterModulo === 'Financeiro'
-                      ? 'bg-[#237a32] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                  >
-                    Financeiro
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilterModulo('Pecuária')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${filterModulo === 'Pecuária'
-                      ? 'bg-[#237a32] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                  >
-                    Gado
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilterModulo('Safra')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${filterModulo === 'Safra'
-                      ? 'bg-[#237a32] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                  >
-                    Safra
-                  </button>
+                <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-xl flex-wrap">
+                  {['todos', 'Financeiro', 'Pecuária', 'Safra', 'Maquinários', 'Equipe'].map((mod) => (
+                    <button
+                      key={mod}
+                      type="button"
+                      onClick={() => setFilterModulo(mod)}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${filterModulo === mod
+                        ? 'bg-[#237a32] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                    >
+                      {mod === 'todos' ? 'Todos' : mod}
+                    </button>
+                  ))}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-xs cursor-pointer"
+                  title="Inverter ordem cronológica"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden sm:inline">{sortOrder === 'desc' ? 'Mais recentes' : 'Mais antigos'}</span>
+                </button>
 
                 <button
                   type="button"
                   onClick={handleExportarHistoricoCompleto}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-xs cursor-pointer"
-                  title="Exportar Registros em CSV"
+                  title="Exportar Registros Filtrados em CSV"
                 >
                   <Download className="w-3.5 h-3.5 text-slate-500" />
                   <span className="hidden sm:inline">Exportar CSV</span>
@@ -640,11 +713,10 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                   <button
                     type="button"
                     onClick={() => setViewMode('tabela')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                      viewMode === 'tabela'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${viewMode === 'tabela'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                      }`}
                   >
                     <List className="w-3 h-3" />
                     <span>Tabela</span>
@@ -652,11 +724,10 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                   <button
                     type="button"
                     onClick={() => setViewMode('timeline')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                      viewMode === 'timeline'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${viewMode === 'timeline'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                      }`}
                   >
                     <Activity className="w-3 h-3" />
                     <span>Linha do Tempo</span>
@@ -683,7 +754,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                     <tbody className="divide-y divide-slate-100 text-xs">
                       {filteredLogs.length === 0 ? (
                         <tr>
-                          <td colSpan="7" className="py-8 text-center text-slate-400">
+                          <td colSpan="7" className="py-12 text-center text-slate-400">
                             Nenhum registro de atividade encontrado para os filtros selecionados.
                           </td>
                         </tr>
@@ -750,6 +821,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                           case 'Pecuária': return { dot: 'bg-green-600 ring-green-100', text: 'text-green-800', bg: 'bg-green-50 border-green-100' };
                           case 'Safra': return { dot: 'bg-amber-500 ring-amber-100', text: 'text-amber-800', bg: 'bg-amber-50 border-amber-100' };
                           case 'Maquinários': return { dot: 'bg-blue-500 ring-blue-100', text: 'text-blue-800', bg: 'bg-blue-50 border-blue-100' };
+                          case 'Equipe': return { dot: 'bg-purple-500 ring-purple-100', text: 'text-purple-800', bg: 'bg-purple-50 border-purple-100' };
                           default: return { dot: 'bg-slate-500 ring-slate-100', text: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' };
                         }
                       };
@@ -903,7 +975,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                     required
                     value={formData.responsavel}
                     onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-[#237a32] focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-[#237a32] focus:bg-white font-medium"
                   />
                 </div>
               </div>
@@ -1020,6 +1092,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                     <option value="PDF">Documento PDF</option>
                     <option value="XLSX">Planilha Excel (XLSX)</option>
                     <option value="CSV">Dados Brutos (CSV)</option>
+                    <option value="JSON">Dados Estruturados (JSON)</option>
                   </select>
                 </div>
 

@@ -68,7 +68,7 @@ export default function Dashboard({ onNavigate, onLogout, user }) {
 
           <MetricsGrid />
 
-          <GraficosDesempenho />
+          <GraficosDesempenho onNavigate={onNavigate} />
 
           <ModulesGrid onNavigateModule={handleSelectModule} />
 
