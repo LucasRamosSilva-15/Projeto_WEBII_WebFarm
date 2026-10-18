@@ -4,14 +4,14 @@ import { api } from '../services/api';
 
 export default function MetricsGrid() {
   const [data, setData] = useState({
-    animais: 5,
-    maquinas: 4,
-    funcionarios: 4,
-    talhoes: 4,
+    animais: 0,
+    maquinas: 0,
+    funcionarios: 0,
+    talhoes: 0,
     financeiro: {
-      totalEntradas: 142800,
-      totalSaidas: 33500,
-      saldoLiquido: 109300
+      totalEntradas: 0,
+      totalSaidas: 0,
+      saldoLiquido: 0
     }
   });
 
@@ -29,53 +29,58 @@ export default function MetricsGrid() {
     loadMetricas();
   }, []);
 
+  const totalAnimais = Number(data.animais || 0);
+  const totalMaquinas = Number(data.maquinas || 0);
+  const totalFuncionarios = Number(data.funcionarios ?? data.totalFuncionarios ?? 0);
+  const saldoLiquido = Number(data.financeiro?.saldoLiquido || 0);
+
   const metrics = [
     {
       id: 'rebanho',
       label: 'Total do Rebanho',
-      value: String(data.animais || 0),
+      value: String(totalAnimais),
       unit: 'cabeças',
-      subtext: '+18 nascimentos este mês',
+      subtext: totalAnimais > 0 ? `${totalAnimais} animais ativos no rebanho` : 'Nenhum animal cadastrado',
       icon: Layers,
       trendIcon: TrendingUp,
       iconColor: 'text-[#237a32] bg-emerald-50',
       borderLeft: 'border-l-4 border-l-[#237a32]',
-      subColor: 'text-emerald-700'
+      subColor: totalAnimais > 0 ? 'text-emerald-700' : 'text-slate-400'
     },
     {
       id: 'maquinas',
       label: 'Máquinas Cadastradas',
-      value: String(data.maquinas || 0),
+      value: String(totalMaquinas),
       unit: 'unidades',
-      subtext: 'Manutenções monitoradas em tempo real',
+      subtext: totalMaquinas > 0 ? `${totalMaquinas} equipamentos no pátio` : 'Nenhuma máquina cadastrada',
       icon: Tractor,
       trendIcon: Wrench,
       iconColor: 'text-slate-700 bg-slate-100',
-      subColor: 'text-amber-700'
+      subColor: totalMaquinas > 0 ? 'text-amber-700' : 'text-slate-400'
     },
     {
       id: 'financeiro',
       label: 'Fluxo Financeiro',
-      value: `R$ ${(data.financeiro?.saldoLiquido || 0).toLocaleString('pt-BR')}`,
-      unit: (data.financeiro?.saldoLiquido || 0) >= 0 ? 'positivo' : 'negativo',
-      subtext: 'Lançamentos e conciliação em dia',
+      value: `R$ ${saldoLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      unit: saldoLiquido >= 0 ? 'saldo' : 'déficit',
+      subtext: (data.financeiro?.totalEntradas > 0 || data.financeiro?.totalSaidas > 0) ? 'Balanço consolidado' : 'Nenhuma movimentação lançada',
       icon: DollarSign,
       trendIcon: CheckCircle,
       iconColor: 'text-[#237a32] bg-emerald-50',
-      valueColor: 'text-[#237a32]',
-      unitColor: 'text-emerald-800',
+      valueColor: saldoLiquido >= 0 ? 'text-[#237a32]' : 'text-rose-600',
+      unitColor: saldoLiquido >= 0 ? 'text-emerald-800' : 'text-rose-700',
       subColor: 'text-slate-500'
     },
     {
       id: 'equipe',
       label: 'Equipe em Campo',
-      value: String(data.totalFuncionarios || 0),
+      value: String(totalFuncionarios),
       unit: 'colaboradores',
-      subtext: '100% dos setores operando hoje',
+      subtext: totalFuncionarios > 0 ? `${totalFuncionarios} colaboradores ativos` : 'Nenhum colaborador cadastrado',
       icon: Users,
       iconColor: 'text-slate-700 bg-slate-100',
-      dotColor: 'bg-emerald-500',
-      subColor: 'text-emerald-700'
+      dotColor: totalFuncionarios > 0 ? 'bg-emerald-500' : 'bg-slate-300',
+      subColor: totalFuncionarios > 0 ? 'text-emerald-700' : 'text-slate-400'
     }
   ];
 

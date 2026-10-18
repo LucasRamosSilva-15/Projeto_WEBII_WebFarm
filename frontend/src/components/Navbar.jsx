@@ -1,7 +1,7 @@
 import { Search, Bell, HelpCircle } from 'lucide-react';
 
 export default function Navbar({ searchTerm = '', onSearchChange, user }) {
-  const firstName = user?.nome ? user.nome.split(' ')[0] : 'Lucas';
+  const firstName = user?.nome ? user.nome.split(' ')[0] : 'Produtor';
 
   return (
     <header className="h-16 px-6 lg:px-8 bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-20 flex items-center justify-between gap-4">

@@ -353,12 +353,7 @@ export default function Login({ onLogin, onNavigateRegister }) {
                 </button>
               </div>
 
-              <div className="mt-5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-500 flex items-center justify-between">
-                <span>Acesso padrão demo:</span>
-                <span className="font-mono font-medium text-slate-700">produtor@fazenda.com.br / 123456</span>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
+              <div className="mt-6 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
                 <span>Versão 2.4.0 (Enterprise)</span>
                 <span className="text-emerald-700 font-medium">Servidores Operacionais</span>
               </div>

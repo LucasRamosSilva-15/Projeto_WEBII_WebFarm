@@ -15,8 +15,8 @@ import {
 export default function Sidebar({ activeModule = 'dashboard', onSelectModule, onLogout, user }) {
   const initials = user?.nome
     ? user.nome.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
-    : 'LR';
-  const userName = user?.nome || 'Lucas Ramos';
+    : 'WF';
+  const userName = user?.nome || 'Produtor Rural';
   const userRole = user?.perfil || 'Administrador';
   const menuItems = [
     {
@@ -28,14 +28,12 @@ export default function Sidebar({ activeModule = 'dashboard', onSelectModule, on
     {
       id: 'animais',
       label: 'Animais & Rebanho',
-      icon: Layers,
-      badge: '1.240'
+      icon: Layers
     },
     {
       id: 'maquinas',
       label: 'Maquinários & Veículos',
-      icon: Truck,
-      badge: '14'
+      icon: Truck
     },
     {
       id: 'financeiro',
@@ -99,10 +97,10 @@ export default function Sidebar({ activeModule = 'dashboard', onSelectModule, on
               </div>
               <div className="truncate">
                 <p className="text-xs font-semibold text-white group-hover:text-emerald-200 transition-colors truncate">
-                  {user?.fazenda || 'Fazenda Santa Maria'}
+                  {user?.fazenda || 'Minha Propriedade'}
                 </p>
                 <p className="text-[10px] text-emerald-200/60 truncate">
-                  850 ha • Mato Grosso
+                  {user?.email || 'Propriedade Ativa'}
                 </p>
               </div>
             </div>

@@ -39,8 +39,7 @@ const Animal = sequelize.define('Animal', {
     type: DataTypes.DATEONLY
   },
   id_fazenda: {
-    type: DataTypes.INTEGER,
-    defaultValue: 1
+    type: DataTypes.INTEGER
   }
 });
 

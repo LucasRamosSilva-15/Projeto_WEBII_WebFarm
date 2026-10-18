@@ -6,74 +6,9 @@ import {
   DollarSign,
   Wrench,
   Wheat,
-  Check,
-  AlertCircle
+  Check
 } from 'lucide-react';
 import { api } from '../services/api';
-
-const DEFAULT_ACTIVITIES = [
-  {
-    id: 1,
-    moduleType: 'pecuaria',
-    time: 'Hoje, 09:30',
-    badge: 'Animal #BR-402',
-    badgeStyle: 'bg-emerald-50 text-[#237a32] border border-emerald-100',
-    icon: Layers,
-    description: 'Vacinação contra Febre Aftosa e pesagem de lote (445 kg) concluída',
-    user: 'Carlos (Vaqueiro)',
-    userInitial: 'C',
-    userInitialBg: 'bg-slate-200 text-slate-700',
-    status: 'Concluído',
-    statusStyle: 'text-emerald-700 bg-emerald-50',
-    isToday: true
-  },
-  {
-    id: 2,
-    moduleType: 'financeiro',
-    time: 'Ontem, 16:15',
-    badge: 'Venda #104',
-    badgeStyle: 'bg-emerald-50 text-emerald-800 border border-emerald-100',
-    icon: DollarSign,
-    description: 'Comercialização de 20 novilhos registrada e NFP-e emitida com sucesso',
-    user: 'Lucas (Admin)',
-    userInitial: 'L',
-    userInitialBg: 'bg-[#237a32] text-white',
-    status: 'Faturado',
-    statusStyle: 'text-emerald-700 bg-emerald-50',
-    isToday: false
-  },
-  {
-    id: 3,
-    moduleType: 'maquinas',
-    time: 'Ontem, 11:40',
-    badge: 'Trator JD-7200',
-    badgeStyle: 'bg-amber-50 text-amber-800 border border-amber-100',
-    icon: Wrench,
-    description: 'Troca preventiva de filtros e lubrificação programada de horímetro (2.450h)',
-    user: 'Marcos (Mecânico)',
-    userInitial: 'M',
-    userInitialBg: 'bg-slate-200 text-slate-700',
-    status: 'Em andamento',
-    statusStyle: 'text-amber-700 bg-amber-50',
-    statusIcon: Clock,
-    isToday: false
-  },
-  {
-    id: 4,
-    moduleType: 'safra',
-    time: '24/10, 08:00',
-    badge: 'Talhão Norte #02',
-    badgeStyle: 'bg-emerald-50 text-[#237a32] border border-emerald-100',
-    icon: Wheat,
-    description: 'Aplicação de adubação foliar e monitoramento de umidade do solo',
-    user: 'Rodrigo (Agrônomo)',
-    userInitial: 'R',
-    userInitialBg: 'bg-slate-200 text-slate-700',
-    status: 'Concluído',
-    statusStyle: 'text-emerald-700 bg-emerald-50',
-    isToday: false
-  }
-];
 
 function getModuleIcon(modulo) {
   switch (modulo) {
@@ -107,7 +42,7 @@ function getBadgeStyle(modulo) {
 
 function getStatusStyle(status) {
   const st = String(status || '').toLowerCase();
-  if (st.includes('conclu') || st.includes('sucesso') || st.includes('fatur')) {
+  if (st.includes('conclu') || st.includes('sucesso') || st.includes('fatur') || st.includes('criado')) {
     return 'text-emerald-700 bg-emerald-50';
   }
   if (st.includes('andamento') || st.includes('pendent')) {
@@ -146,7 +81,7 @@ function formatRelativeTime(dateString) {
 
 export default function RecentActivityTable() {
   const [filterModule, setFilterModule] = useState('todos');
-  const [activities, setActivities] = useState(DEFAULT_ACTIVITIES);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -156,50 +91,48 @@ export default function RecentActivityTable() {
         const response = await api.historico.getAll({ limite: 10 });
         if (!active) return;
         const list = Array.isArray(response) ? response : response?.dados || [];
-        if (list.length > 0) {
-          const mapped = list.map((item) => {
-            const user = item.responsavel || 'Operador';
-            const userInitial = user.charAt(0).toUpperCase();
-            const relTime = formatRelativeTime(item.dataHora || item.createdAt);
-            const rawMod = (item.modulo || 'geral')
-              .toLowerCase()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '');
-            const normalizedMod = rawMod.includes('pec')
-              ? 'pecuaria'
-              : rawMod.includes('maq')
-              ? 'maquinas'
-              : rawMod.includes('fin')
-              ? 'financeiro'
-              : rawMod.includes('saf') || rawMod.includes('lav')
-              ? 'safra'
-              : rawMod;
-            return {
-              id: item.id,
-              moduleType: normalizedMod,
-              time: item.data || relTime,
-              badge: item.acao || item.titulo || item.tipo || 'Atividade',
-              badgeStyle: getBadgeStyle(normalizedMod),
-              icon: getModuleIcon(normalizedMod),
-              description: item.detalhes || item.descricao || item.acao,
-              user,
-              userInitial,
-              userInitialBg:
-                userInitial === 'L' || userInitial === 'A' || userInitial === 'R'
-                  ? 'bg-[#237a32] text-white'
-                  : 'bg-slate-200 text-slate-700',
-              status: item.tipo_evento === 'criacao' ? 'Criado' : item.tipo_evento === 'remocao' ? 'Removido' : item.status || 'Concluído',
-              statusStyle: getStatusStyle(item.status || item.tipo_evento),
-              statusIcon: String(item.status || '').toLowerCase().includes('andamento')
-                ? Clock
-                : Check,
-              isToday: (item.data || '').includes('Hoje') || relTime.startsWith('Hoje')
-            };
-          });
-          setActivities(mapped);
-        }
+        const mapped = list.map((item) => {
+          const user = item.responsavel || 'Operador';
+          const userInitial = user.charAt(0).toUpperCase();
+          const relTime = formatRelativeTime(item.dataHora || item.createdAt);
+          const rawMod = (item.modulo || 'geral')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+          const normalizedMod = rawMod.includes('pec')
+            ? 'pecuaria'
+            : rawMod.includes('maq')
+            ? 'maquinas'
+            : rawMod.includes('fin')
+            ? 'financeiro'
+            : rawMod.includes('saf') || rawMod.includes('lav')
+            ? 'safra'
+            : rawMod;
+          return {
+            id: item.id,
+            moduleType: normalizedMod,
+            time: item.data || relTime,
+            badge: item.acao || item.titulo || item.tipo || 'Atividade',
+            badgeStyle: getBadgeStyle(normalizedMod),
+            icon: getModuleIcon(normalizedMod),
+            description: item.detalhes || item.descricao || item.acao,
+            user,
+            userInitial,
+            userInitialBg:
+              userInitial === 'L' || userInitial === 'A' || userInitial === 'R'
+                ? 'bg-[#237a32] text-white'
+                : 'bg-slate-200 text-slate-700',
+            status: item.tipo_evento === 'criacao' ? 'Criado' : item.tipo_evento === 'remocao' ? 'Removido' : item.status || 'Concluído',
+            statusStyle: getStatusStyle(item.status || item.tipo_evento),
+            statusIcon: String(item.status || '').toLowerCase().includes('andamento')
+              ? Clock
+              : Check,
+            isToday: (item.data || '').includes('Hoje') || relTime.startsWith('Hoje')
+          };
+        });
+        setActivities(mapped);
       } catch (err) {
-        setActivities(DEFAULT_ACTIVITIES);
+        setActivities([]);
       } finally {
         if (active) setLoading(false);
       }
@@ -263,58 +196,70 @@ export default function RecentActivityTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">
-            {filtered.map((item) => {
-              const Icon = item.icon;
-              const StatusIcon = item.statusIcon || Check;
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-slate-400">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Clock className="w-8 h-8 text-slate-300" />
+                    <p className="text-sm font-medium text-slate-600">Nenhuma atividade recente registrada</p>
+                    <p className="text-xs text-slate-400">As movimentações realizadas nos módulos aparecerão aqui automaticamente.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filtered.map((item) => {
+                const Icon = item.icon;
+                const StatusIcon = item.statusIcon || Check;
 
-              return (
-                <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-3.5 px-5 font-medium text-slate-700 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          item.isToday ? 'bg-[#237a32]' : 'bg-slate-300'
-                        }`}
-                      />
-                      <span>{item.time}</span>
-                    </div>
-                  </td>
-
-                  <td className="py-3.5 px-5 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-[11px] ${item.badgeStyle}`}
-                    >
-                      <Icon className="w-3 h-3" />
-                      {item.badge}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-5 text-slate-800 font-medium">
-                    {item.description}
-                  </td>
-
-                  <td className="py-3.5 px-5 text-slate-600 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${item.userInitialBg}`}
-                      >
-                        {item.userInitial}
+                return (
+                  <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3.5 px-5 font-medium text-slate-700 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            item.isToday ? 'bg-[#237a32]' : 'bg-slate-300'
+                          }`}
+                        />
+                        <span>{item.time}</span>
                       </div>
-                      <span>{item.user}</span>
-                    </div>
-                  </td>
+                    </td>
 
-                  <td className="py-3.5 px-5 text-right whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${item.statusStyle}`}
-                    >
-                      <StatusIcon className="w-3 h-3" />
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+                    <td className="py-3.5 px-5 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-[11px] ${item.badgeStyle}`}
+                      >
+                        <Icon className="w-3 h-3" />
+                        {item.badge}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-5 text-slate-800 font-medium">
+                      {item.description}
+                    </td>
+
+                    <td className="py-3.5 px-5 text-slate-600 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${item.userInitialBg}`}
+                        >
+                          {item.userInitial}
+                        </div>
+                        <span>{item.user}</span>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-5 text-right whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${item.statusStyle}`}
+                      >
+                        <StatusIcon className="w-3 h-3" />
+                        {item.status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

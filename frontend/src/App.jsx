@@ -79,14 +79,10 @@ export default function App() {
   };
 
   const handleLogin = (userPayload) => {
-    const user = userPayload || {
-      nome: 'Lucas Ramos',
-      email: 'produtor@fazenda.com.br',
-      perfil: 'Administrador'
-    };
-    setCurrentUser(user);
+    if (!userPayload) return;
+    setCurrentUser(userPayload);
     try {
-      localStorage.setItem('webfarm_auth_session', JSON.stringify(user));
+      localStorage.setItem('webfarm_auth_session', JSON.stringify(userPayload));
     } catch {}
     navigateTo('dashboard');
   };
