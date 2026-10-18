@@ -395,131 +395,142 @@ export default function GraficosDesempenho({ onNavigate }) {
               </div>
             ) : (
               <>
-                <div className="relative bg-gradient-to-b from-emerald-50/20 to-transparent rounded-xl border border-slate-100 p-2 sm:p-4">
-                  <svg
-                    viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                    className="w-full h-56 sm:h-64 overflow-visible"
-                  >
-                    <defs>
-                      <linearGradient id="realGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#237a32" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#237a32" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-
-                    {[minPeso, Math.round((minPeso + maxPeso) / 2), maxPeso].map((v) => {
-                      const divisor = maxPeso - minPeso || 1;
-                      const y = svgHeight - paddingY - ((v - minPeso) / divisor) * usableHeight;
-                      return (
-                        <g key={v}>
-                          <line
-                            x1={paddingX}
-                            y1={y}
-                            x2={svgWidth - paddingX}
-                            y2={y}
-                            stroke="#e2e8f0"
-                            strokeDasharray="4 4"
-                          />
-                          <text
-                            x={paddingX - 8}
-                            y={y + 4}
-                            textAnchor="end"
-                            className="text-[10px] fill-slate-400 font-medium"
-                          >
-                            {v} kg
-                          </text>
-                        </g>
-                      );
-                    })}
-
-                    <path d={dArea} fill="url(#realGradient)" />
-                    <path
-                      d={dMeta}
-                      fill="none"
-                      stroke="#d97706"
-                      strokeWidth="2"
-                      strokeDasharray="5 5"
-                    />
-                    <path
-                      d={dReal}
-                      fill="none"
-                      stroke="#237a32"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-
-                    {dadosPeso.map((item, idx) => {
-                      const pt = pathRealPoints[idx];
-                      const isHovered = hoveredPoint === idx;
-
-                      return (
-                        <g key={item.mes} className="cursor-pointer">
-                          <circle
-                            cx={pt.x}
-                            cy={pt.y}
-                            r={isHovered ? 6 : 4}
-                            fill="#ffffff"
-                            stroke="#237a32"
-                            strokeWidth={isHovered ? 3 : 2.5}
-                            className="transition-all duration-150"
-                          />
-                          <circle
-                            cx={pt.x}
-                            cy={pt.y}
-                            r="18"
-                            fill="transparent"
-                            onMouseEnter={() => setHoveredPoint(idx)}
-                            onMouseLeave={() => setHoveredPoint(null)}
-                          />
-                          <text
-                            x={pt.x}
-                            y={svgHeight - 10}
-                            textAnchor="middle"
-                            className={`text-[11px] font-semibold transition-colors ${
-                              isHovered ? 'fill-[#185824]' : 'fill-slate-500'
-                            }`}
-                          >
-                            {item.mes}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </svg>
-
-                  {hoveredPoint !== null && dadosPeso[hoveredPoint] && (
-                    <div
-                      className="absolute z-20 pointer-events-none bg-slate-900/95 text-white px-3 py-2 rounded-xl shadow-xl text-xs backdrop-blur-xs border border-slate-700 transition-all duration-150"
-                      style={{
-                        left: `${(pathRealPoints[hoveredPoint].x / svgWidth) * 100}%`,
-                        top: `${(pathRealPoints[hoveredPoint].y / svgHeight) * 100 - 35}%`,
-                        transform: 'translate(-50%, -100%)'
-                      }}
+                <div className="bg-gradient-to-b from-emerald-50/20 to-transparent rounded-xl border border-slate-100 p-2 sm:p-4">
+                  <div className="relative w-full h-56 sm:h-64">
+                    <svg
+                      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                      className="w-full h-full overflow-visible"
                     >
-                      <div className="font-bold text-emerald-400 border-b border-slate-700 pb-1 mb-1">
-                        Mês de {dadosPeso[hoveredPoint].mes}
-                      </div>
-                      <div className="space-y-0.5 text-slate-200">
-                        <div className="flex justify-between gap-3">
-                          <span className="text-slate-400">Peso Real:</span>
-                          <span className="font-semibold text-white">
-                            {dadosPeso[hoveredPoint].peso} kg
-                          </span>
+                      <defs>
+                        <linearGradient id="realGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#237a32" stopOpacity="0.25" />
+                          <stop offset="100%" stopColor="#237a32" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+
+                      {[minPeso, Math.round((minPeso + maxPeso) / 2), maxPeso].map((v) => {
+                        const divisor = maxPeso - minPeso || 1;
+                        const y = svgHeight - paddingY - ((v - minPeso) / divisor) * usableHeight;
+                        return (
+                          <g key={v}>
+                            <line
+                              x1={paddingX}
+                              y1={y}
+                              x2={svgWidth - paddingX}
+                              y2={y}
+                              stroke="#e2e8f0"
+                              strokeDasharray="4 4"
+                            />
+                            <text
+                              x={paddingX - 8}
+                              y={y + 4}
+                              textAnchor="end"
+                              className="text-[10px] fill-slate-400 font-medium"
+                            >
+                              {v} kg
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      <path d={dArea} fill="url(#realGradient)" />
+                      <path
+                        d={dMeta}
+                        fill="none"
+                        stroke="#d97706"
+                        strokeWidth="2"
+                        strokeDasharray="5 5"
+                      />
+                      <path
+                        d={dReal}
+                        fill="none"
+                        stroke="#237a32"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                      />
+
+                      {dadosPeso.map((item, idx) => {
+                        const pt = pathRealPoints[idx];
+                        const isHovered = hoveredPoint === idx;
+
+                        return (
+                          <g key={item.mes} className="cursor-pointer">
+                            <circle
+                              cx={pt.x}
+                              cy={pt.y}
+                              r={isHovered ? 6 : 4}
+                              fill="#ffffff"
+                              stroke="#237a32"
+                              strokeWidth={isHovered ? 3 : 2.5}
+                              className="transition-all duration-150"
+                            />
+                            <circle
+                              cx={pt.x}
+                              cy={pt.y}
+                              r="18"
+                              fill="transparent"
+                              onMouseEnter={() => setHoveredPoint(idx)}
+                              onMouseLeave={() => setHoveredPoint(null)}
+                            />
+                            <text
+                              x={pt.x}
+                              y={svgHeight - 10}
+                              textAnchor="middle"
+                              className={`text-[11px] font-semibold transition-colors ${
+                                isHovered ? 'fill-[#185824]' : 'fill-slate-500'
+                              }`}
+                            >
+                              {item.mes}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+
+                    {hoveredPoint !== null && dadosPeso[hoveredPoint] && (() => {
+                      const pt = pathRealPoints[hoveredPoint];
+                      const xRatio = pt.x / svgWidth;
+                      const yRatio = pt.y / svgHeight;
+                      const alignX = xRatio > 0.8 ? '-85%' : xRatio < 0.2 ? '-15%' : '-50%';
+                      const isNearTop = yRatio < 0.35;
+                      const translateY = isNearTop ? '12px' : 'calc(-100% - 10px)';
+
+                      return (
+                        <div
+                          className="absolute z-20 pointer-events-none bg-slate-900/95 text-white px-3 py-2 rounded-xl shadow-xl text-xs backdrop-blur-xs border border-slate-700 whitespace-nowrap"
+                          style={{
+                            left: `${xRatio * 100}%`,
+                            top: `${yRatio * 100}%`,
+                            transform: `translate(${alignX}, ${translateY})`
+                          }}
+                        >
+                          <div className="font-bold text-emerald-400 border-b border-slate-700 pb-1 mb-1">
+                            Mês de {dadosPeso[hoveredPoint].mes}
+                          </div>
+                          <div className="space-y-0.5 text-slate-200">
+                            <div className="flex justify-between gap-3">
+                              <span className="text-slate-400">Peso Real:</span>
+                              <span className="font-semibold text-white">
+                                {dadosPeso[hoveredPoint].peso} kg
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <span className="text-slate-400">Meta:</span>
+                              <span className="font-semibold text-amber-300">
+                                {dadosPeso[hoveredPoint].meta} kg
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-3 pt-0.5">
+                              <span className="text-slate-400">GMD Estimado:</span>
+                              <span className="font-bold text-emerald-400">
+                                {dadosPeso[hoveredPoint].gmd}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between gap-3">
-                          <span className="text-slate-400">Meta:</span>
-                          <span className="font-semibold text-amber-300">
-                            {dadosPeso[hoveredPoint].meta} kg
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-3 pt-0.5">
-                          <span className="text-slate-400">GMD Estimado:</span>
-                          <span className="font-bold text-emerald-400">
-                            {dadosPeso[hoveredPoint].gmd}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
