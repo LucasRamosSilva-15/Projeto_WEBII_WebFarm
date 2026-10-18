@@ -17,8 +17,16 @@ async function iniciarServidor() {
         await seedDatabase();
         console.log('Banco de dados sincronizado e inicializado com sucesso!');
 
-        app.listen(PORT, () => {
+        const server = app.listen(PORT, () => {
             console.log(`Servidor rodando em http://localhost:${PORT}`);
+        });
+
+        server.on('error', (erro) => {
+            if (erro.code === 'EADDRINUSE') {
+                console.error(`A porta ${PORT} já está em uso por outro processo.`);
+            } else {
+                console.error('Erro no servidor HTTP:', erro);
+            }
         });
     } catch (erro) {
         console.error('Erro ao iniciar o servidor:', erro);

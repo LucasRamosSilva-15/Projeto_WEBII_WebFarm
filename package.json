@@ -11,6 +11,10 @@
     "sqlite3": "^6.0.1"
   },
   "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "dev:backend": "node --watch backend/src/server.js",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "start:backend": "node backend/src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
