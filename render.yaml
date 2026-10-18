@@ -1,7 +1,7 @@
 services:
   - type: web
     name: webfarm-backend
-    env: node
+    runtime: node
     plan: free
     buildCommand: npm install
     startCommand: npm run start:backend
@@ -11,10 +11,8 @@ services:
       - key: FRONTEND_URL
         sync: false
 
-  - type: web
+  - type: static
     name: webfarm-frontend
-    env: static
-    plan: free
     buildCommand: npm install --prefix frontend && npm run build --prefix frontend
     staticPublishPath: ./frontend/dist
     routes:
