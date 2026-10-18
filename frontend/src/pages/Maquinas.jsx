@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Truck,
   Wrench,
@@ -20,89 +20,11 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { api } from '../services/api';
+import { exportToCSV } from '../services/exportService';
 
 export default function Maquinas({ onNavigate, onLogout, user }) {
-  const [maquinas, setMaquinas] = useState([
-    {
-      id: 1,
-      prefixo: 'TR-01',
-      tipo: 'Trator',
-      marca: 'John Deere',
-      modelo: '8400R (400 cv)',
-      ano: '2022',
-      horimetro: 3820,
-      status: 'Operando',
-      operador: 'Carlos Eduardo',
-      ultimaRevisao: '10/09/2025',
-      proximaRevisao: '4.000 hrs'
-    },
-    {
-      id: 2,
-      prefixo: 'COL-01',
-      tipo: 'Colheitadeira',
-      marca: 'New Holland',
-      modelo: 'CR 9.90 Duplo Rotor',
-      ano: '2021',
-      horimetro: 2150,
-      status: 'Operando',
-      operador: 'José Roberto',
-      ultimaRevisao: '05/08/2025',
-      proximaRevisao: '2.500 hrs'
-    },
-    {
-      id: 3,
-      prefixo: 'PUL-01',
-      tipo: 'Pulverizador',
-      marca: 'Jacto',
-      modelo: 'Uniport 3030 (3.000L)',
-      ano: '2023',
-      horimetro: 1420,
-      status: 'Manutenção',
-      operador: 'Marcos Vinícius',
-      ultimaRevisao: '15/10/2025',
-      proximaRevisao: 'Troca de Bicos & Filtros'
-    },
-    {
-      id: 4,
-      prefixo: 'TR-02',
-      tipo: 'Trator',
-      marca: 'Massey Ferguson',
-      modelo: 'MF 7719 Dyna-6',
-      ano: '2020',
-      horimetro: 4980,
-      status: 'Operando',
-      operador: 'Antônio Silva',
-      ultimaRevisao: '12/07/2025',
-      proximaRevisao: '5.200 hrs'
-    },
-    {
-      id: 5,
-      prefixo: 'CAM-01',
-      tipo: 'Caminhonete',
-      marca: 'Toyota',
-      modelo: 'Hilux SRX 4x4 Diesel',
-      ano: '2023',
-      horimetro: 68500,
-      status: 'Operando',
-      operador: 'Lucas Ramos',
-      ultimaRevisao: '20/09/2025',
-      proximaRevisao: '75.000 km'
-    },
-    {
-      id: 6,
-      prefixo: 'IMP-04',
-      tipo: 'Plantadeira',
-      marca: 'Stara',
-      modelo: 'Princesa 16 Linhas',
-      ano: '2022',
-      horimetro: 940,
-      status: 'Parado',
-      operador: 'Aguardando Safra',
-      ultimaRevisao: '02/06/2025',
-      proximaRevisao: 'Revisão Pré-Plantio'
-    }
-  ]);
-
+  const [maquinas, setMaquinas] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,6 +43,21 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
     ultimaRevisao: '',
     proximaRevisao: ''
   });
+
+  const loadMaquinas = async () => {
+    try {
+      const data = await api.maquinas.getAll();
+      if (Array.isArray(data)) {
+        setMaquinas(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadMaquinas();
+  }, []);
 
   const totalAtivas = maquinas.length;
   const emOperacao = maquinas.filter((m) => m.status === 'Operando').length;
@@ -162,13 +99,18 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteMaquina = (id) => {
+  const handleDeleteMaquina = async (id) => {
     if (confirm('Deseja realmente remover esta máquina/veículo do cadastro?')) {
-      setMaquinas(maquinas.filter((m) => m.id !== id));
+      try {
+        await api.maquinas.delete(id);
+        setMaquinas((prev) => prev.filter((m) => m.id !== id));
+      } catch (err) {
+        alert('Erro ao excluir máquina: ' + err.message);
+      }
     }
   };
 
-  const handleSaveMaquina = (e) => {
+  const handleSaveMaquina = async (e) => {
     e.preventDefault();
 
     if (!formData.prefixo.trim() || !formData.modelo.trim() || !formData.marca.trim()) {
@@ -176,24 +118,43 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
       return;
     }
 
-    if (editingMaquina) {
-      setMaquinas(
-        maquinas.map((m) =>
-          m.id === editingMaquina.id
-            ? { ...m, ...formData, horimetro: Number(formData.horimetro) || 0 }
-            : m
-        )
-      );
-    } else {
-      const nova = {
-        id: Date.now(),
-        ...formData,
-        horimetro: Number(formData.horimetro) || 0
-      };
-      setMaquinas([nova, ...maquinas]);
-    }
+    const payload = {
+      ...formData,
+      horimetro: Number(formData.horimetro) || 0
+    };
 
-    setIsModalOpen(false);
+    try {
+      if (editingMaquina) {
+        const updated = await api.maquinas.update(editingMaquina.id, payload);
+        setMaquinas((prev) =>
+          prev.map((m) => (m.id === editingMaquina.id ? { ...m, ...updated } : m))
+        );
+      } else {
+        const created = await api.maquinas.create(payload);
+        setMaquinas((prev) => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Erro ao salvar máquina: ' + err.message);
+    }
+  };
+
+  const handleExportarMaquinas = () => {
+    const headers = ['ID', 'Prefixo', 'Tipo', 'Marca', 'Modelo', 'Ano', 'Horímetro (hrs)', 'Status', 'Operador', 'Última Revisão', 'Próxima Revisão'];
+    const rows = filteredMaquinas.map((m) => [
+      m.id,
+      m.prefixo,
+      m.tipo,
+      m.marca,
+      m.modelo,
+      m.ano,
+      m.horimetro,
+      m.status,
+      m.operador || '-',
+      m.ultimaRevisao || '-',
+      m.proximaRevisao || '-'
+    ]);
+    exportToCSV('WebFarm_Inventario_Maquinas.csv', headers, rows);
   };
 
   const filteredMaquinas = maquinas.filter((maq) => {
@@ -375,9 +336,9 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
 
               <button
                 type="button"
-                onClick={() => alert(`Exportando checklist e relatório da frota com ${maquinas.length} unidades...`)}
+                onClick={handleExportarMaquinas}
                 className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Exportar Frota"
+                title="Exportar Frota em CSV"
               >
                 <Download className="w-4 h-4" />
               </button>
@@ -538,13 +499,13 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
             <button
               type="button"
               onClick={() => {
-                alert(`Exportando ficha técnica consolidada da frota...`);
+                handleExportarMaquinas();
                 setIsBottomMenuOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer text-left"
             >
               <Download className="w-4 h-4 text-slate-500" />
-              <span>Exportar Ficha da Frota</span>
+              <span>Exportar Ficha da Frota (CSV)</span>
             </button>
           </div>
         )}

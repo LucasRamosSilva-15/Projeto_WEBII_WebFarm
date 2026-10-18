@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -17,51 +17,10 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { api } from '../services/api';
 
 export default function Funcionarios({ onNavigate, onLogout, user }) {
-  const [funcionarios, setFuncionarios] = useState([
-    {
-      id: 1,
-      nome: 'Carlos Eduardo Oliveira',
-      cpf: '123.456.789-01',
-      funcao: 'Vaqueiro Líder',
-      cell: '(65) 99812-4021',
-      salario: 3400,
-      status: 'Ativo',
-      data_admissao: '12/03/2022'
-    },
-    {
-      id: 2,
-      nome: 'Marcos Vinicius Santos',
-      cpf: '234.567.890-12',
-      funcao: 'Mecânico de Máquinas',
-      cell: '(65) 99654-1188',
-      salario: 4200,
-      status: 'Ativo',
-      data_admissao: '05/08/2021'
-    },
-    {
-      id: 3,
-      nome: 'Rodrigo Alencar Lima',
-      cpf: '345.678.901-23',
-      funcao: 'Agrônomo Residente',
-      cell: '(65) 99123-8877',
-      salario: 7800,
-      status: 'Ativo',
-      data_admissao: '10/01/2023'
-    },
-    {
-      id: 4,
-      nome: 'José Ferreira de Paula',
-      cpf: '456.789.012-34',
-      funcao: 'Operador de Trator',
-      cell: '(65) 99777-3322',
-      salario: 3100,
-      status: 'Férias',
-      data_admissao: '18/11/2022'
-    }
-  ]);
-
+  const [funcionarios, setFuncionarios] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFuncao, setFilterFuncao] = useState('todas');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,6 +36,21 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
     status: 'Ativo',
     data_admissao: ''
   });
+
+  const loadFuncionarios = async () => {
+    try {
+      const data = await api.funcionarios.getAll();
+      if (Array.isArray(data)) {
+        setFuncionarios(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadFuncionarios();
+  }, []);
 
   const handleOpenAddModal = () => {
     setEditingFuncionario(null);
@@ -108,13 +82,18 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteFuncionario = (id) => {
+  const handleDeleteFuncionario = async (id) => {
     if (confirm('Tem certeza que deseja remover este funcionário da equipe?')) {
-      setFuncionarios(funcionarios.filter((f) => f.id !== id));
+      try {
+        await api.funcionarios.delete(id);
+        setFuncionarios((prev) => prev.filter((f) => f.id !== id));
+      } catch (err) {
+        alert('Erro ao excluir funcionário: ' + err.message);
+      }
     }
   };
 
-  const handleSaveFuncionario = (e) => {
+  const handleSaveFuncionario = async (e) => {
     e.preventDefault();
 
     if (!formData.nome.trim() || !formData.cpf.trim()) {
@@ -122,24 +101,25 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
       return;
     }
 
-    if (editingFuncionario) {
-      setFuncionarios(
-        funcionarios.map((f) =>
-          f.id === editingFuncionario.id
-            ? { ...f, ...formData, salario: Number(formData.salario) || 0 }
-            : f
-        )
-      );
-    } else {
-      const newFuncionario = {
-        id: Date.now(),
-        ...formData,
-        salario: Number(formData.salario) || 0
-      };
-      setFuncionarios([newFuncionario, ...funcionarios]);
-    }
+    const payload = {
+      ...formData,
+      salario: Number(formData.salario) || 0
+    };
 
-    setIsModalOpen(false);
+    try {
+      if (editingFuncionario) {
+        const updated = await api.funcionarios.update(editingFuncionario.id, payload);
+        setFuncionarios((prev) =>
+          prev.map((f) => (f.id === editingFuncionario.id ? { ...f, ...updated } : f))
+        );
+      } else {
+        const created = await api.funcionarios.create(payload);
+        setFuncionarios((prev) => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Erro ao salvar funcionário: ' + err.message);
+    }
   };
 
   const filteredFuncionarios = funcionarios.filter((func) => {

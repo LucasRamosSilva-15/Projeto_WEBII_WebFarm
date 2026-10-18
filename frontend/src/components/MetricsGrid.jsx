@@ -1,11 +1,39 @@
+import { useState, useEffect } from 'react';
 import { Layers, TrendingUp, Tractor, Wrench, DollarSign, CheckCircle, Users } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function MetricsGrid() {
+  const [data, setData] = useState({
+    animais: 5,
+    maquinas: 4,
+    funcionarios: 4,
+    talhoes: 4,
+    financeiro: {
+      totalEntradas: 142800,
+      totalSaidas: 33500,
+      saldoLiquido: 109300
+    }
+  });
+
+  useEffect(() => {
+    async function loadMetricas() {
+      try {
+        const res = await api.dashboard.getMetricas();
+        if (res) {
+          setData(res);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadMetricas();
+  }, []);
+
   const metrics = [
     {
       id: 'rebanho',
       label: 'Total do Rebanho',
-      value: '1.240',
+      value: String(data.animais || 0),
       unit: 'cabeças',
       subtext: '+18 nascimentos este mês',
       icon: Layers,
@@ -16,10 +44,10 @@ export default function MetricsGrid() {
     },
     {
       id: 'maquinas',
-      label: 'Máquinas Operacionais',
-      value: '12 / 14',
-      unit: 'em atividade',
-      subtext: '2 em manutenção preventiva',
+      label: 'Máquinas Cadastradas',
+      value: String(data.maquinas || 0),
+      unit: 'unidades',
+      subtext: 'Manutenções monitoradas em tempo real',
       icon: Tractor,
       trendIcon: Wrench,
       iconColor: 'text-slate-700 bg-slate-100',
@@ -27,10 +55,10 @@ export default function MetricsGrid() {
     },
     {
       id: 'financeiro',
-      label: 'Fluxo Financeiro (Mês)',
-      value: 'R$ 142.800',
-      unit: 'positivo',
-      subtext: 'Vendas de gado & grãos em dia',
+      label: 'Fluxo Financeiro',
+      value: `R$ ${(data.financeiro?.saldoLiquido || 0).toLocaleString('pt-BR')}`,
+      unit: (data.financeiro?.saldoLiquido || 0) >= 0 ? 'positivo' : 'negativo',
+      subtext: 'Lançamentos e conciliação em dia',
       icon: DollarSign,
       trendIcon: CheckCircle,
       iconColor: 'text-[#237a32] bg-emerald-50',
@@ -41,7 +69,7 @@ export default function MetricsGrid() {
     {
       id: 'equipe',
       label: 'Equipe em Campo',
-      value: '8',
+      value: String(data.totalFuncionarios || 0),
       unit: 'colaboradores',
       subtext: '100% dos setores operando hoje',
       icon: Users,

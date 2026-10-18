@@ -9,7 +9,11 @@ const Maquinario = sequelize.define('Maquinario', {
   },
   nome: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
+  },
+  prefixo: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   tipo: {
     type: DataTypes.STRING
@@ -20,8 +24,28 @@ const Maquinario = sequelize.define('Maquinario', {
   modelo: {
     type: DataTypes.STRING
   },
+  ano: {
+    type: DataTypes.STRING
+  },
   ano_fabricacao: {
     type: DataTypes.INTEGER
+  },
+  horimetro: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0
+  },
+  status: {
+    type: DataTypes.STRING,
+    defaultValue: 'Operando'
+  },
+  operador: {
+    type: DataTypes.STRING
+  },
+  ultimaRevisao: {
+    type: DataTypes.STRING
+  },
+  proximaRevisao: {
+    type: DataTypes.STRING
   },
   data_aquisicao: {
     type: DataTypes.DATEONLY
@@ -29,12 +53,9 @@ const Maquinario = sequelize.define('Maquinario', {
   valor_aquisicao: {
     type: DataTypes.DECIMAL(10, 2)
   },
-  status: {
-    type: DataTypes.STRING
-  },
   id_fazenda: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    defaultValue: 1
   }
 });
 

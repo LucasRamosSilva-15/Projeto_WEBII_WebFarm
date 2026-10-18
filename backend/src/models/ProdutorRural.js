@@ -28,6 +28,9 @@ const ProdutorRural = sequelize.define('ProdutorRural', {
   email: {
     type: DataTypes.STRING
   },
+  senha: {
+    type: DataTypes.STRING
+  },
   endereco: {
     type: DataTypes.STRING
   },

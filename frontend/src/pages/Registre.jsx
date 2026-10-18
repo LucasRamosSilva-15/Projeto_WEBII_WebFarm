@@ -11,8 +11,11 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
-  ChevronLeft
+  ChevronLeft,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
   const [personType, setPersonType] = useState('fisica');
@@ -26,32 +29,62 @@ export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    if (password.length < 6) {
+      setErrorMessage('A senha deve conter no mínimo 6 caracteres.');
+      return;
+    }
 
     if (password !== confirmPassword) {
-      alert('As senhas digitadas não coincidem. Por favor, verifique.');
+      setErrorMessage('As senhas digitadas não coincidem. Por favor, verifique.');
       return;
     }
 
     if (!termsAccepted) {
-      alert('Você precisa aceitar os termos de uso e política de privacidade para continuar.');
+      setErrorMessage('Você precisa aceitar os termos de uso e política de privacidade para continuar.');
       return;
     }
 
-    const userPayload = {
-      nome: fullName,
-      email: email,
-      perfil: 'Administrador',
-      fazenda: farmName
-    };
+    setLoading(true);
 
-    alert(`Cadastro realizado com sucesso!\nBem-vindo(a) à WebFarm 2.0, ${fullName}!`);
-    if (onRegisterSuccess) {
-      onRegisterSuccess(userPayload);
-    } else if (onNavigateLogin) {
-      onNavigateLogin();
+    try {
+      const response = await api.auth.register({
+        fullName,
+        document,
+        personType,
+        email,
+        phone,
+        farmName,
+        password
+      });
+
+      const userPayload = response.usuario || {
+        nome: fullName,
+        email: email,
+        perfil: 'Administrador',
+        fazenda: farmName
+      };
+
+      setSuccessMessage(`Cadastro realizado com sucesso! Bem-vindo(a), ${fullName}!`);
+      setTimeout(() => {
+        if (onRegisterSuccess) {
+          onRegisterSuccess(userPayload);
+        } else if (onNavigateLogin) {
+          onNavigateLogin();
+        }
+      }, 1200);
+    } catch (err) {
+      setErrorMessage(err.message || 'Erro ao realizar cadastro do produtor.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -118,6 +151,20 @@ export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
               Cadastre sua propriedade e centralize sua gestão pecuária e agrícola.
             </p>
           </div>
+
+          {errorMessage && (
+            <div className="mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{errorMessage}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-5 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span className="leading-relaxed font-medium">{successMessage}</span>
+            </div>
+          )}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl max-w-xs">
@@ -327,10 +374,20 @@ export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
 
             <button
               type="submit"
-              className="w-full mt-3 py-3.5 px-6 rounded-xl bg-[#237a32] hover:bg-[#185824] text-white font-semibold text-sm tracking-wide shadow-lg shadow-[#237a32]/25 hover:shadow-xl hover:shadow-[#185824]/30 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer"
+              disabled={loading}
+              className="w-full mt-3 py-3.5 px-6 rounded-xl bg-[#237a32] hover:bg-[#185824] disabled:bg-slate-400 text-white font-semibold text-sm tracking-wide shadow-lg shadow-[#237a32]/25 hover:shadow-xl hover:shadow-[#185824]/30 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer"
             >
-              <span>Finalizar Cadastro</span>
-              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Finalizando Cadastro...</span>
+                </>
+              ) : (
+                <>
+                  <span>Finalizar Cadastro</span>
+                  <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                </>
+              )}
             </button>
           </form>
 

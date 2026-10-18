@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wheat,
   Sprout,
@@ -20,71 +20,11 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { api } from '../services/api';
+import { exportToCSV } from '../services/exportService';
 
 export default function Safra({ onNavigate, onLogout, user }) {
-  const [talhoes, setTalhoes] = useState([
-    {
-      id: 1,
-      nome: 'Talhão 01 - Chapadão Norte',
-      cultura: 'Soja',
-      variedade: 'TMG 2375 IPRO',
-      areaHa: 240,
-      dataPlantio: '15/10/2024',
-      estagio: 'Enchimento de Grãos (R5.2)',
-      previsaoColheita: '18/02/2025',
-      produtividadeEstimada: '72 sc/ha',
-      status: 'Em Desenvolvimento'
-    },
-    {
-      id: 2,
-      nome: 'Talhão 02 - Sede Velha',
-      cultura: 'Milho',
-      variedade: 'Pioneer P3707 VYHR',
-      areaHa: 180,
-      dataPlantio: '02/11/2024',
-      estagio: 'Floração / Pendoamento (VT)',
-      previsaoColheita: '25/03/2025',
-      produtividadeEstimada: '135 sc/ha',
-      status: 'Em Desenvolvimento'
-    },
-    {
-      id: 3,
-      nome: 'Talhão 03 - Várzea Baixa',
-      cultura: 'Soja',
-      variedade: 'Brasmax Desafio 8473',
-      areaHa: 150,
-      dataPlantio: '20/09/2024',
-      estagio: 'Maturação Fisiológica (R8)',
-      previsaoColheita: '22/01/2025',
-      produtividadeEstimada: '68 sc/ha',
-      status: 'Pronto para Colheita'
-    },
-    {
-      id: 4,
-      nome: 'Talhão 04 - Piquete Sul',
-      cultura: 'Pastagem',
-      variedade: 'Brachiaria Brizantha (Marandu)',
-      areaHa: 200,
-      dataPlantio: '10/01/2023',
-      estagio: 'Pasto Formado / Rotação',
-      previsaoColheita: 'Manejo Pecuário',
-      produtividadeEstimada: 'Alta Capacidade',
-      status: 'Manejo Ativo'
-    },
-    {
-      id: 5,
-      nome: 'Talhão 05 - Alto da Serra',
-      cultura: 'Sorgo',
-      variedade: 'DKB 599 Granífero',
-      areaHa: 80,
-      dataPlantio: '12/11/2024',
-      estagio: 'Desenvolvimento Vegetativo (V6)',
-      previsaoColheita: '10/04/2025',
-      produtividadeEstimada: '85 sc/ha',
-      status: 'Em Desenvolvimento'
-    }
-  ]);
-
+  const [talhoes, setTalhoes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCultura, setFilterCultura] = useState('todas');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -102,6 +42,21 @@ export default function Safra({ onNavigate, onLogout, user }) {
     produtividadeEstimada: '',
     status: 'Em Desenvolvimento'
   });
+
+  const loadTalhoes = async () => {
+    try {
+      const data = await api.producoes.getAll();
+      if (Array.isArray(data)) {
+        setTalhoes(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadTalhoes();
+  }, []);
 
   const areaTotal = talhoes.reduce((acc, curr) => acc + (Number(curr.areaHa) || 0), 0);
   const talhoesAtivos = talhoes.length;
@@ -141,13 +96,18 @@ export default function Safra({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteTalhao = (id) => {
+  const handleDeleteTalhao = async (id) => {
     if (confirm('Tem certeza que deseja excluir o registro deste talhão/safra?')) {
-      setTalhoes(talhoes.filter((t) => t.id !== id));
+      try {
+        await api.producoes.delete(id);
+        setTalhoes((prev) => prev.filter((t) => t.id !== id));
+      } catch (err) {
+        alert('Erro ao excluir talhão: ' + err.message);
+      }
     }
   };
 
-  const handleSaveTalhao = (e) => {
+  const handleSaveTalhao = async (e) => {
     e.preventDefault();
 
     if (!formData.nome.trim() || !formData.cultura.trim() || !formData.areaHa) {
@@ -155,24 +115,42 @@ export default function Safra({ onNavigate, onLogout, user }) {
       return;
     }
 
-    if (editingTalhao) {
-      setTalhoes(
-        talhoes.map((t) =>
-          t.id === editingTalhao.id
-            ? { ...t, ...formData, areaHa: Number(formData.areaHa) || 0 }
-            : t
-        )
-      );
-    } else {
-      const novo = {
-        id: Date.now(),
-        ...formData,
-        areaHa: Number(formData.areaHa) || 0
-      };
-      setTalhoes([novo, ...talhoes]);
-    }
+    const payload = {
+      ...formData,
+      areaHa: Number(formData.areaHa) || 0
+    };
 
-    setIsModalOpen(false);
+    try {
+      if (editingTalhao) {
+        const updated = await api.producoes.update(editingTalhao.id, payload);
+        setTalhoes((prev) =>
+          prev.map((t) => (t.id === editingTalhao.id ? { ...t, ...updated } : t))
+        );
+      } else {
+        const created = await api.producoes.create(payload);
+        setTalhoes((prev) => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Erro ao salvar talhão: ' + err.message);
+    }
+  };
+
+  const handleExportarSafra = () => {
+    const headers = ['ID', 'Talhão / Lote', 'Cultura', 'Variedade', 'Área (ha)', 'Data Plantio', 'Estágio', 'Previsão Colheita', 'Produtividade Estimada', 'Status'];
+    const rows = filteredTalhoes.map((t) => [
+      t.id,
+      t.nome,
+      t.cultura,
+      t.variedade || '-',
+      t.areaHa,
+      t.dataPlantio,
+      t.estagio,
+      t.previsaoColheita || '-',
+      t.produtividadeEstimada || '-',
+      t.status
+    ]);
+    exportToCSV('WebFarm_Caderno_Campo_Safra.csv', headers, rows);
   };
 
   const filteredTalhoes = talhoes.filter((t) => {
@@ -353,9 +331,9 @@ export default function Safra({ onNavigate, onLogout, user }) {
 
               <button
                 type="button"
-                onClick={() => alert(`Exportando relatório agronômico de ${talhoes.length} talhões cadastrados...`)}
+                onClick={handleExportarSafra}
                 className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Exportar Dados da Safra"
+                title="Exportar Dados da Safra em CSV"
               >
                 <Download className="w-4 h-4" />
               </button>
@@ -509,13 +487,13 @@ export default function Safra({ onNavigate, onLogout, user }) {
             <button
               type="button"
               onClick={() => {
-                alert('Exportando mapa e cronograma da safra...');
+                handleExportarSafra();
                 setIsBottomMenuOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer text-left"
             >
               <Download className="w-4 h-4 text-slate-500" />
-              <span>Exportar Mapa da Safra</span>
+              <span>Exportar Mapa da Safra (CSV)</span>
             </button>
           </div>
         )}

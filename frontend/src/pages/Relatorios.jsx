@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FileText,
   History,
@@ -19,11 +19,16 @@ import {
   Wheat,
   Clock,
   Trash2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Activity,
+  List
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import GraficosDesempenho from '../components/GraficosDesempenho';
+import { api } from '../services/api';
+import { exportToCSV, exportToJSON, exportToPrintableReport } from '../services/exportService';
 
 export default function Relatorios({ onNavigate, onLogout, user }) {
   const [modelosRelatorios] = useState([
@@ -79,65 +84,10 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     }
   ]);
 
-  const [historicoLogs, setHistoricoLogs] = useState([
-    {
-      id: 1,
-      data: '24/10/2025 16:42',
-      modulo: 'Financeiro',
-      responsavel: 'Rodrigo Alencar Lima',
-      acao: 'Lançamento de Venda de Gado',
-      detalhes: 'Comercialização de 20 novilhos Nelore (Lote 04) - R$ 82.000,00',
-      protocolo: 'WF-FIN-9912'
-    },
-    {
-      id: 2,
-      data: '24/10/2025 14:15',
-      modulo: 'Maquinários',
-      responsavel: 'Carlos Eduardo',
-      acao: 'Atualização de Horímetro',
-      detalhes: 'Trator John Deere 8400R (TR-01) alcançou 3.820 horas trabalhadas',
-      protocolo: 'WF-MAQ-4820'
-    },
-    {
-      id: 3,
-      data: '23/10/2025 11:30',
-      modulo: 'Pecuária',
-      responsavel: 'Marcos Silva',
-      acao: 'Vacinação em Lote',
-      detalhes: 'Aplicação de vacina contra febre aftosa em 85 cabeças do Lote 02',
-      protocolo: 'WF-PEC-1033'
-    },
-    {
-      id: 4,
-      data: '22/10/2025 09:20',
-      modulo: 'Safra',
-      responsavel: 'Rodrigo Alencar Lima',
-      acao: 'Registro de Fenologia',
-      detalhes: 'Talhão 01 - Chapadão Norte atingiu estágio R5.2 (Enchimento de Grãos)',
-      protocolo: 'WF-AGR-0711'
-    },
-    {
-      id: 5,
-      data: '20/10/2025 17:05',
-      modulo: 'Equipe',
-      responsavel: 'Rodrigo Alencar Lima',
-      acao: 'Cadastro de Funcionário',
-      detalhes: 'Admissão do operador tratorista Marcos Vinícius na fazenda',
-      protocolo: 'WF-RH-0245'
-    },
-    {
-      id: 6,
-      data: '18/10/2025 15:50',
-      modulo: 'Financeiro',
-      responsavel: 'Rodrigo Alencar Lima',
-      acao: 'Lançamento de Despesa',
-      detalhes: 'Aquisição de ração para confinamento - NF #8841 (R$ 14.500,00)',
-      protocolo: 'WF-FIN-9854'
-    }
-  ]);
-
+  const [historicoLogs, setHistoricoLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterModulo, setFilterModulo] = useState('todos');
+  const [viewMode, setViewMode] = useState('tabela');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('novoLog');
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
@@ -160,6 +110,21 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
   const totalRelatoriosEmitidos = modelosRelatorios.length + 23;
   const totalLogs = historicoLogs.length;
 
+  const loadHistorico = async () => {
+    try {
+      const data = await api.historico.getAll();
+      if (Array.isArray(data)) {
+        setHistoricoLogs(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadHistorico();
+  }, []);
+
   const handleOpenAddLogModal = () => {
     setModalType('novoLog');
     setFormData({
@@ -179,13 +144,18 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteLog = (id) => {
+  const handleDeleteLog = async (id) => {
     if (confirm('Deseja realmente remover este registro de histórico?')) {
-      setHistoricoLogs(historicoLogs.filter((log) => log.id !== id));
+      try {
+        await api.historico.delete(id);
+        setHistoricoLogs((prev) => prev.filter((log) => log.id !== id));
+      } catch (err) {
+        alert('Erro ao excluir registro: ' + err.message);
+      }
     }
   };
 
-  const handleSaveLog = (e) => {
+  const handleSaveLog = async (e) => {
     e.preventDefault();
 
     if (!formData.acao.trim() || !formData.detalhes.trim()) {
@@ -193,21 +163,229 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
       return;
     }
 
-    const novoLog = {
-      id: Date.now(),
+    const payload = {
       ...formData,
+      responsavel: user?.name || formData.responsavel || 'Administrador WebFarm',
       data: formData.data || new Date().toLocaleString('pt-BR'),
       protocolo: `WF-${formData.modulo.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`
     };
 
-    setHistoricoLogs([novoLog, ...historicoLogs]);
-    setIsModalOpen(false);
+    try {
+      const criado = await api.historico.create(payload);
+      setHistoricoLogs((prev) => [criado, ...prev]);
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Erro ao registrar histórico: ' + err.message);
+    }
   };
 
-  const handleGenerateReportSubmit = (e) => {
+  const handleDownloadModelo = async (rel) => {
+    try {
+      if (rel.id === 1) {
+        const transacoes = await api.transacoes.getAll();
+        const headers = ['ID', 'Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Status', 'Comprovante'];
+        const rows = transacoes.map((t) => [
+          t.id,
+          t.data,
+          t.tipo.toUpperCase(),
+          t.categoria,
+          t.descricao,
+          Number(t.valor || 0).toFixed(2),
+          t.status,
+          t.comprovante || '-'
+        ]);
+        exportToCSV('WebFarm_DRE_Fluxo_Caixa.csv', headers, rows);
+      } else if (rel.id === 2) {
+        const animais = await api.animais.getAll();
+        const headers = ['ID', 'Código Brinco', 'Espécie', 'Raça', 'Sexo', 'Peso (kg)', 'Status', 'Origem'];
+        const rows = animais.map((a) => [
+          a.id,
+          a.codigo_brinco,
+          a.especie,
+          a.raca,
+          a.sexo,
+          a.peso,
+          a.status,
+          a.origem
+        ]);
+        exportToCSV('WebFarm_Inventario_Rebanho.csv', headers, rows);
+      } else if (rel.id === 3) {
+        const producoes = await api.producoes.getAll();
+        const headers = ['ID', 'Talhão / Lote', 'Cultura', 'Variedade', 'Área (ha)', 'Data Plantio', 'Estágio', 'Previsão Colheita', 'Produtividade Estimada', 'Status'];
+        const rows = producoes.map((p) => [
+          p.id,
+          p.nome,
+          p.cultura,
+          p.variedade || '-',
+          p.areaHa,
+          p.dataPlantio,
+          p.estagio,
+          p.previsaoColheita || '-',
+          p.produtividadeEstimada || '-',
+          p.status
+        ]);
+        exportToCSV('WebFarm_Caderno_Campo_Safra.csv', headers, rows);
+      } else if (rel.id === 4) {
+        const maquinas = await api.maquinas.getAll();
+        const headers = ['ID', 'Prefixo', 'Tipo', 'Marca', 'Modelo', 'Ano', 'Horímetro (hrs)', 'Status', 'Operador', 'Última Revisão', 'Próxima Revisão'];
+        const rows = maquinas.map((m) => [
+          m.id,
+          m.prefixo,
+          m.tipo,
+          m.marca,
+          m.modelo,
+          m.ano,
+          m.horimetro,
+          m.status,
+          m.operador || '-',
+          m.ultimaRevisao || '-',
+          m.proximaRevisao || '-'
+        ]);
+        exportToCSV('WebFarm_Frota_Maquinarios.csv', headers, rows);
+      } else if (rel.id === 5) {
+        const funcionarios = await api.funcionarios.getAll();
+        const headers = ['ID', 'Nome', 'CPF', 'Função / Cargo', 'Telefone', 'Salário (R$)', 'Status', 'Data Admissão'];
+        const rows = funcionarios.map((f) => [
+          f.id,
+          f.nome,
+          f.cpf,
+          f.funcao,
+          f.cell,
+          Number(f.salario || 0).toFixed(2),
+          f.status,
+          f.data_admissao
+        ]);
+        exportToCSV('WebFarm_Folha_Equipe_Rural.csv', headers, rows);
+      } else {
+        const headers = ['Data', 'Módulo', 'Ação Realizada', 'Detalhes', 'Responsável', 'Protocolo'];
+        const rows = historicoLogs.map((l) => [
+          l.data,
+          l.modulo,
+          l.acao,
+          l.detalhes,
+          l.responsavel,
+          l.protocolo
+        ]);
+        exportToCSV('WebFarm_Auditoria_Logs.csv', headers, rows);
+      }
+    } catch (err) {
+      alert('Erro ao exportar dados: ' + err.message);
+    }
+  };
+
+  const handleGenerateReportSubmit = async (e) => {
     e.preventDefault();
-    alert(`Gerando "${relatorioCustom.tipo}" no formato ${relatorioCustom.formato} para o período ${relatorioCustom.periodo}. O download iniciará em instantes.`);
-    setIsModalOpen(false);
+    const formato = relatorioCustom.formato || 'PDF';
+    const tipo = relatorioCustom.tipo;
+    const periodo = relatorioCustom.periodo;
+
+    try {
+      let title = tipo;
+      let headers = [];
+      let rows = [];
+      let rawData = [];
+
+      if (tipo.includes('Financeiro')) {
+        const dados = await api.transacoes.getAll();
+        rawData = dados;
+        headers = ['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Status'];
+        rows = dados.map((t) => [
+          t.data,
+          t.tipo.toUpperCase(),
+          t.categoria,
+          t.descricao,
+          `R$ ${Number(t.valor || 0).toLocaleString('pt-BR')}`,
+          t.status
+        ]);
+      } else if (tipo.includes('Rebanho') || tipo.includes('Pecuária')) {
+        const dados = await api.animais.getAll();
+        rawData = dados;
+        headers = ['Brinco', 'Espécie', 'Raça', 'Sexo', 'Peso Atual', 'Status', 'Origem'];
+        rows = dados.map((a) => [
+          a.codigo_brinco,
+          a.especie,
+          a.raca,
+          a.sexo,
+          `${a.peso} kg`,
+          a.status,
+          a.origem
+        ]);
+      } else if (tipo.includes('Safra') || tipo.includes('Agrícola')) {
+        const dados = await api.producoes.getAll();
+        rawData = dados;
+        headers = ['Talhão', 'Cultura', 'Variedade', 'Área', 'Estágio', 'Previsão Colheita', 'Status'];
+        rows = dados.map((p) => [
+          p.nome,
+          p.cultura,
+          p.variedade || '-',
+          `${p.areaHa} ha`,
+          p.estagio,
+          p.previsaoColheita || '-',
+          p.status
+        ]);
+      } else if (tipo.includes('Maquinários') || tipo.includes('Frota')) {
+        const dados = await api.maquinas.getAll();
+        rawData = dados;
+        headers = ['Prefixo', 'Equipamento', 'Marca', 'Modelo', 'Horímetro', 'Status', 'Operador'];
+        rows = dados.map((m) => [
+          m.prefixo,
+          m.tipo,
+          m.marca,
+          m.modelo,
+          `${m.horimetro} hrs`,
+          m.status,
+          m.operador || '-'
+        ]);
+      } else {
+        rawData = historicoLogs;
+        headers = ['Data', 'Módulo', 'Ação', 'Detalhes', 'Responsável', 'Protocolo'];
+        rows = historicoLogs.map((l) => [
+          l.data,
+          l.modulo,
+          l.acao,
+          l.detalhes,
+          l.responsavel,
+          l.protocolo
+        ]);
+      }
+
+      const fileName = `WebFarm_${tipo.replace(/[^a-zA-Z0-9]/g, '_')}_${periodo.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+      if (formato === 'CSV' || formato === 'XLSX') {
+        exportToCSV(`${fileName}.csv`, headers, rows);
+      } else if (formato === 'JSON') {
+        exportToJSON(`${fileName}.json`, rawData);
+      } else {
+        exportToPrintableReport(
+          title,
+          `Período de Referência: ${periodo}`,
+          {
+            'Propriedade': 'Fazenda Santa Maria',
+            'Total de Registros': rows.length,
+            'Emitido por': user?.name || 'Administrador WebFarm',
+            'Status': 'Validado & Conciliado'
+          },
+          headers,
+          rows
+        );
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Erro ao gerar relatório: ' + err.message);
+    }
+  };
+
+  const handleExportarHistoricoCompleto = () => {
+    const headers = ['Data', 'Módulo', 'Ação', 'Detalhes', 'Responsável', 'Protocolo'];
+    const rows = filteredLogs.map((l) => [
+      l.data,
+      l.modulo,
+      l.acao,
+      l.detalhes,
+      l.responsavel,
+      l.protocolo
+    ]);
+    exportToCSV('WebFarm_Historico_Auditoria_Completo.csv', headers, rows);
   };
 
   const filteredLogs = historicoLogs.filter((log) => {
@@ -324,6 +502,8 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
             </div>
           </div>
 
+          <GraficosDesempenho />
+
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -367,7 +547,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                       </span>
                       <button
                         type="button"
-                        onClick={() => alert(`Baixando "${rel.titulo}" em formato ${rel.formato}...`)}
+                        onClick={() => handleDownloadModelo(rel)}
                         className="inline-flex items-center gap-1.5 font-bold text-[#237a32] hover:text-[#185824] cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -445,78 +625,180 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                     Safra
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleExportarHistoricoCompleto}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-xs cursor-pointer"
+                  title="Exportar Registros em CSV"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden sm:inline">Exportar CSV</span>
+                </button>
+
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('tabela')}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
+                      viewMode === 'tabela'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <List className="w-3 h-3" />
+                    <span>Tabela</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('timeline')}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
+                      viewMode === 'timeline'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <Activity className="w-3 h-3" />
+                    <span>Linha do Tempo</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/75 border-b border-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                      <th className="py-3.5 px-5">Data & Hora</th>
-                      <th className="py-3.5 px-5">Módulo</th>
-                      <th className="py-3.5 px-5">Operação Realizada</th>
-                      <th className="py-3.5 px-5">Descrição / Detalhes</th>
-                      <th className="py-3.5 px-5">Responsável</th>
-                      <th className="py-3.5 px-5 font-mono">Protocolo</th>
-                      <th className="py-3.5 px-5 text-right">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredLogs.length === 0 ? (
-                      <tr>
-                        <td colSpan="7" className="py-8 text-center text-slate-400">
-                          Nenhum registro de atividade encontrado para os filtros selecionados.
-                        </td>
+            {viewMode === 'tabela' ? (
+              <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/75 border-b border-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="py-3.5 px-5">Data & Hora</th>
+                        <th className="py-3.5 px-5">Módulo</th>
+                        <th className="py-3.5 px-5">Operação Realizada</th>
+                        <th className="py-3.5 px-5">Descrição / Detalhes</th>
+                        <th className="py-3.5 px-5">Responsável</th>
+                        <th className="py-3.5 px-5 font-mono">Protocolo</th>
+                        <th className="py-3.5 px-5 text-right">Ação</th>
                       </tr>
-                    ) : (
-                      filteredLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-3.5 px-5 text-slate-600 whitespace-nowrap font-medium">
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{log.data}</span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-5 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md font-semibold text-[11px] bg-emerald-50 text-[#237a32] border border-emerald-100">
-                              {log.modulo}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-5 font-bold text-slate-900 whitespace-nowrap">
-                            {log.acao}
-                          </td>
-                          <td className="py-3.5 px-5 text-slate-700 max-w-md">
-                            {log.detalhes}
-                          </td>
-                          <td className="py-3.5 px-5 font-medium text-slate-700 whitespace-nowrap">
-                            {log.responsavel}
-                          </td>
-                          <td className="py-3.5 px-5 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                            {log.protocolo}
-                          </td>
-                          <td className="py-3.5 px-5 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteLog(log.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Remover Log"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs">
+                      {filteredLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="py-8 text-center text-slate-400">
+                            Nenhum registro de atividade encontrado para os filtros selecionados.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ) : (
+                        filteredLogs.map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-3.5 px-5 text-slate-600 whitespace-nowrap font-medium">
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{log.data}</span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-5 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md font-semibold text-[11px] bg-emerald-50 text-[#237a32] border border-emerald-100">
+                                {log.modulo}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-5 font-bold text-slate-900 whitespace-nowrap">
+                              {log.acao}
+                            </td>
+                            <td className="py-3.5 px-5 text-slate-700 max-w-md">
+                              {log.detalhes}
+                            </td>
+                            <td className="py-3.5 px-5 font-medium text-slate-700 whitespace-nowrap">
+                              {log.responsavel}
+                            </td>
+                            <td className="py-3.5 px-5 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                              {log.protocolo}
+                            </td>
+                            <td className="py-3.5 px-5 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLog(log.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Remover Log"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-              <div className="py-3 px-5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span>{filteredLogs.length} atividades auditadas exibidas</span>
-                <span>Fazenda Santa Maria • Segurança Ativa</span>
+                <div className="py-3 px-5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <span>{filteredLogs.length} atividades auditadas exibidas</span>
+                  <span>Fazenda Santa Maria • Segurança Ativa</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 space-y-6">
+                {filteredLogs.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    Nenhum registro de atividade encontrado na linha do tempo.
+                  </div>
+                ) : (
+                  <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                    {filteredLogs.map((log) => {
+                      const getModuleTheme = (mod) => {
+                        switch (mod) {
+                          case 'Financeiro': return { dot: 'bg-emerald-500 ring-emerald-100', text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100' };
+                          case 'Pecuária': return { dot: 'bg-green-600 ring-green-100', text: 'text-green-800', bg: 'bg-green-50 border-green-100' };
+                          case 'Safra': return { dot: 'bg-amber-500 ring-amber-100', text: 'text-amber-800', bg: 'bg-amber-50 border-amber-100' };
+                          case 'Maquinários': return { dot: 'bg-blue-500 ring-blue-100', text: 'text-blue-800', bg: 'bg-blue-50 border-blue-100' };
+                          default: return { dot: 'bg-slate-500 ring-slate-100', text: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' };
+                        }
+                      };
+                      const theme = getModuleTheme(log.modulo);
+
+                      return (
+                        <div key={log.id} className="relative group">
+                          <div className={`absolute -left-[29px] top-1.5 w-4 h-4 rounded-full ${theme.dot} ring-4 transition-transform group-hover:scale-125`} />
+                          <div className="bg-slate-50/70 hover:bg-slate-50 border border-slate-200/80 rounded-xl p-4 transition-all">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${theme.bg} ${theme.text}`}>
+                                  {log.modulo}
+                                </span>
+                                <h4 className="text-sm font-bold text-slate-900">{log.acao}</h4>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-slate-400">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>{log.data}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLog(log.id)}
+                                  className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
+                                  title="Remover Registro"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-slate-700 leading-relaxed mb-3">{log.detalhes}</p>
+
+                            <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-200/60 text-slate-500">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-slate-300" />
+                                <span>Operador: <strong className="text-slate-700 font-semibold">{log.responsavel}</strong></span>
+                              </div>
+                              <span className="font-mono text-slate-400">{log.protocolo}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </main>
 
@@ -545,7 +827,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
             <button
               type="button"
               onClick={() => {
-                alert(`Exportando extrato consolidado de todas as atividades auditadas...`);
+                handleExportarHistoricoCompleto();
                 setIsBottomMenuOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer text-left"

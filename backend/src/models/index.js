@@ -8,9 +8,9 @@ const ProducaoAgricola = require('./ProducaoAgricola');
 const ProdutorRural = require('./ProdutorRural');
 const Veiculo = require('./Veiculo');
 const VacinacaoAnimal = require('./VacinacaoAnimal');
+const TransacaoFinanceira = require('./TransacaoFinanceira');
+const HistoricoAtividade = require('./HistoricoAtividade');
 
-
-// PRODUTOR RURAL → FAZENDA
 ProdutorRural.hasMany(Fazenda, {
   foreignKey: 'id_produtor'
 });
@@ -19,8 +19,6 @@ Fazenda.belongsTo(ProdutorRural, {
   foreignKey: 'id_produtor'
 });
 
-
-// FAZENDA → ANIMAIS
 Fazenda.hasMany(Animal, {
   foreignKey: 'id_fazenda'
 });
@@ -29,8 +27,6 @@ Animal.belongsTo(Fazenda, {
   foreignKey: 'id_fazenda'
 });
 
-
-// FAZENDA → FUNCIONÁRIOS
 Fazenda.hasMany(Funcionario, {
   foreignKey: 'id_fazenda'
 });
@@ -39,8 +35,6 @@ Funcionario.belongsTo(Fazenda, {
   foreignKey: 'id_fazenda'
 });
 
-
-// FAZENDA → MAQUINÁRIOS
 Fazenda.hasMany(Maquinario, {
   foreignKey: 'id_fazenda'
 });
@@ -49,8 +43,6 @@ Maquinario.belongsTo(Fazenda, {
   foreignKey: 'id_fazenda'
 });
 
-
-// FAZENDA → VEÍCULOS
 Fazenda.hasMany(Veiculo, {
   foreignKey: 'id_fazenda'
 });
@@ -59,8 +51,6 @@ Veiculo.belongsTo(Fazenda, {
   foreignKey: 'id_fazenda'
 });
 
-
-// FAZENDA → PRODUÇÃO AGRÍCOLA
 Fazenda.hasMany(ProducaoAgricola, {
   foreignKey: 'id_fazenda'
 });
@@ -69,8 +59,6 @@ ProducaoAgricola.belongsTo(Fazenda, {
   foreignKey: 'id_fazenda'
 });
 
-
-// FAZENDA → FORNECEDORES
 Fazenda.hasMany(Fornecedor, {
   foreignKey: 'id_fazenda'
 });
@@ -79,8 +67,14 @@ Fornecedor.belongsTo(Fazenda, {
   foreignKey: 'id_fazenda'
 });
 
+Fazenda.hasMany(TransacaoFinanceira, {
+  foreignKey: 'id_fazenda'
+});
 
-// ANIMAL → VACINAÇÃO ANIMAL
+TransacaoFinanceira.belongsTo(Fazenda, {
+  foreignKey: 'id_fazenda'
+});
+
 Animal.hasMany(VacinacaoAnimal, {
   foreignKey: 'id_animal'
 });
@@ -89,8 +83,6 @@ VacinacaoAnimal.belongsTo(Animal, {
   foreignKey: 'id_animal'
 });
 
-
-// MAQUINÁRIO → MANUTENÇÃO
 Maquinario.hasMany(Manutencao, {
   foreignKey: 'id_equipamento'
 });
@@ -99,8 +91,6 @@ Manutencao.belongsTo(Maquinario, {
   foreignKey: 'id_equipamento'
 });
 
-
-// VEÍCULO → MANUTENÇÃO
 Veiculo.hasMany(Manutencao, {
   foreignKey: 'id_veiculo'
 });
@@ -109,6 +99,13 @@ Manutencao.belongsTo(Veiculo, {
   foreignKey: 'id_veiculo'
 });
 
+Fazenda.hasMany(HistoricoAtividade, {
+  foreignKey: 'id_fazenda'
+});
+
+HistoricoAtividade.belongsTo(Fazenda, {
+  foreignKey: 'id_fazenda'
+});
 
 module.exports = {
   Animal,
@@ -120,5 +117,7 @@ module.exports = {
   ProducaoAgricola,
   ProdutorRural,
   Veiculo,
-  VacinacaoAnimal
+  VacinacaoAnimal,
+  TransacaoFinanceira,
+  HistoricoAtividade
 };

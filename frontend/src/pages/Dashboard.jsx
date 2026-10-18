@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import MetricsGrid from '../components/MetricsGrid';
 import ModulesGrid from '../components/ModulesGrid';
 import RecentActivityTable from '../components/RecentActivityTable';
+import GraficosDesempenho from '../components/GraficosDesempenho';
 import Footer from '../components/Footer';
 
 export default function Dashboard({ onNavigate, onLogout, user }) {
@@ -66,6 +67,8 @@ export default function Dashboard({ onNavigate, onLogout, user }) {
           </div>
 
           <MetricsGrid />
+
+          <GraficosDesempenho />
 
           <ModulesGrid onNavigateModule={handleSelectModule} />
 

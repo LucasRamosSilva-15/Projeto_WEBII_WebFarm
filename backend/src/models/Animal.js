@@ -14,7 +14,7 @@ const Animal = sequelize.define('Animal', {
   },
   especie: {
     type: DataTypes.STRING,
-    allowNull: false
+    defaultValue: 'Bovino'
   },
   raca: {
     type: DataTypes.STRING
@@ -29,7 +29,8 @@ const Animal = sequelize.define('Animal', {
     type: DataTypes.FLOAT
   },
   status: {
-    type: DataTypes.STRING
+    type: DataTypes.STRING,
+    defaultValue: 'Saudável'
   },
   origem: {
     type: DataTypes.STRING
@@ -39,7 +40,7 @@ const Animal = sequelize.define('Animal', {
   },
   id_fazenda: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    defaultValue: 1
   }
 });
 

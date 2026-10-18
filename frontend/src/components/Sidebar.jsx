@@ -99,7 +99,7 @@ export default function Sidebar({ activeModule = 'dashboard', onSelectModule, on
               </div>
               <div className="truncate">
                 <p className="text-xs font-semibold text-white group-hover:text-emerald-200 transition-colors truncate">
-                  Fazenda Santa Maria
+                  {user?.fazenda || 'Fazenda Santa Maria'}
                 </p>
                 <p className="text-[10px] text-emerald-200/60 truncate">
                   850 ha • Mato Grosso

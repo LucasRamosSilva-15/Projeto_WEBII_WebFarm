@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -20,71 +20,11 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { api } from '../services/api';
+import { exportToCSV } from '../services/exportService';
 
 export default function Financeiro({ onNavigate, onLogout, user }) {
-  const [movimentacoes, setMovimentacoes] = useState([
-    {
-      id: 1,
-      tipo: 'entrada',
-      categoria: 'Venda de Gado',
-      descricao: 'Comercialização de 20 novilhos Nelore (Lote 04)',
-      valor: 82000,
-      data: '24/10/2025',
-      status: 'Recebido',
-      comprovante: 'NFP-e #104'
-    },
-    {
-      id: 2,
-      tipo: 'saida',
-      categoria: 'Ração & Nutrição',
-      descricao: 'Compra de 150 sacas de ração farelada para confinamento',
-      valor: 14500,
-      data: '23/10/2025',
-      status: 'Pago',
-      comprovante: 'NF #8841'
-    },
-    {
-      id: 3,
-      tipo: 'entrada',
-      categoria: 'Venda de Leite',
-      descricao: 'Fornecimento quinzenal de leite para laticínio (12.400L)',
-      valor: 34800,
-      data: '20/10/2025',
-      status: 'Recebido',
-      comprovante: 'Recibo #902'
-    },
-    {
-      id: 4,
-      tipo: 'saida',
-      categoria: 'Medicamentos & Vacinas',
-      descricao: 'Lote de vacinas contra febre aftosa e vermífugos',
-      valor: 6200,
-      data: '18/10/2025',
-      status: 'Pago',
-      comprovante: 'NF #4012'
-    },
-    {
-      id: 5,
-      tipo: 'saida',
-      categoria: 'Combustível & Manutenção',
-      descricao: 'Óleo diesel S10 para colheitadeiras e tratores (2.000L)',
-      valor: 12800,
-      data: '15/10/2025',
-      status: 'Pago',
-      comprovante: 'NF #5519'
-    },
-    {
-      id: 6,
-      tipo: 'entrada',
-      categoria: 'Venda de Grãos',
-      descricao: 'Entrega de safra de milho safrinha (300 sacas)',
-      valor: 26000,
-      data: '12/10/2025',
-      status: 'Recebido',
-      comprovante: 'NFP-e #098'
-    }
-  ]);
-
+  const [movimentacoes, setMovimentacoes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState('todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,13 +41,28 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
     comprovante: ''
   });
 
+  const loadMovimentacoes = async () => {
+    try {
+      const data = await api.transacoes.getAll();
+      if (Array.isArray(data)) {
+        setMovimentacoes(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadMovimentacoes();
+  }, []);
+
   const totalEntradas = movimentacoes
     .filter((m) => m.tipo === 'entrada')
-    .reduce((acc, curr) => acc + curr.valor, 0);
+    .reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
 
   const totalSaidas = movimentacoes
     .filter((m) => m.tipo === 'saida')
-    .reduce((acc, curr) => acc + curr.valor, 0);
+    .reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
 
   const saldoLiquido = totalEntradas - totalSaidas;
 
@@ -141,13 +96,18 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteMovimentacao = (id) => {
+  const handleDeleteMovimentacao = async (id) => {
     if (confirm('Tem certeza que deseja remover este lançamento financeiro?')) {
-      setMovimentacoes(movimentacoes.filter((m) => m.id !== id));
+      try {
+        await api.transacoes.delete(id);
+        setMovimentacoes((prev) => prev.filter((m) => m.id !== id));
+      } catch (err) {
+        alert('Erro ao excluir transação: ' + err.message);
+      }
     }
   };
 
-  const handleSaveMovimentacao = (e) => {
+  const handleSaveMovimentacao = async (e) => {
     e.preventDefault();
 
     if (!formData.descricao.trim() || !formData.valor) {
@@ -155,24 +115,40 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
       return;
     }
 
-    if (editingMovimentacao) {
-      setMovimentacoes(
-        movimentacoes.map((m) =>
-          m.id === editingMovimentacao.id
-            ? { ...m, ...formData, valor: Number(formData.valor) || 0 }
-            : m
-        )
-      );
-    } else {
-      const novaMov = {
-        id: Date.now(),
-        ...formData,
-        valor: Number(formData.valor) || 0
-      };
-      setMovimentacoes([novaMov, ...movimentacoes]);
-    }
+    const payload = {
+      ...formData,
+      valor: Number(formData.valor) || 0
+    };
 
-    setIsModalOpen(false);
+    try {
+      if (editingMovimentacao) {
+        const updated = await api.transacoes.update(editingMovimentacao.id, payload);
+        setMovimentacoes((prev) =>
+          prev.map((m) => (m.id === editingMovimentacao.id ? { ...m, ...updated } : m))
+        );
+      } else {
+        const created = await api.transacoes.create(payload);
+        setMovimentacoes((prev) => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Erro ao salvar movimentação: ' + err.message);
+    }
+  };
+
+  const handleExportarExtrato = () => {
+    const headers = ['ID', 'Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Status', 'Comprovante'];
+    const rows = filteredMovimentacoes.map((m) => [
+      m.id,
+      m.data,
+      m.tipo.toUpperCase(),
+      m.categoria,
+      m.descricao,
+      Number(m.valor || 0).toFixed(2),
+      m.status,
+      m.comprovante || '-'
+    ]);
+    exportToCSV('WebFarm_Extrato_Financeiro.csv', headers, rows);
   };
 
   const filteredMovimentacoes = movimentacoes.filter((mov) => {
@@ -337,9 +313,9 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
 
               <button
                 type="button"
-                onClick={() => alert(`Exportando extrato financeiro com ${movimentacoes.length} lançamentos...`)}
+                onClick={handleExportarExtrato}
                 className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Exportar Extrato"
+                title="Exportar Extrato em CSV"
               >
                 <Download className="w-4 h-4" />
               </button>
@@ -479,13 +455,13 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
             <button
               type="button"
               onClick={() => {
-                alert(`Exportando DRE Agrícola consolidado...`);
+                handleExportarExtrato();
                 setIsBottomMenuOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer text-left"
             >
               <Download className="w-4 h-4 text-slate-500" />
-              <span>Exportar DRE Agrícola</span>
+              <span>Exportar DRE Agrícola (CSV)</span>
             </button>
           </div>
         )}

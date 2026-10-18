@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Sparkles,
@@ -11,30 +11,64 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ChevronRight
+  ChevronRight,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function Login({ onLogin, onNavigateRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    try {
+      const savedIdentifier = localStorage.getItem('webfarm_remember_identifier');
+      if (savedIdentifier) {
+        setIdentifier(savedIdentifier);
+        setRememberMe(true);
+      }
+    } catch {}
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const cleanName = identifier.includes('@')
-      ? identifier.split('@')[0].replace(/[._-]/g, ' ')
-      : 'Lucas Ramos';
-    const formattedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    setErrorMessage('');
+    setLoading(true);
 
-    const userPayload = {
-      nome: formattedName,
-      email: identifier.includes('@') ? identifier : `${identifier}@fazenda.com.br`,
-      perfil: 'Administrador'
-    };
+    try {
+      const response = await api.auth.login({
+        identificador: identifier,
+        senha: password
+      });
 
-    if (onLogin) {
-      onLogin(userPayload);
+      if (rememberMe) {
+        try {
+          localStorage.setItem('webfarm_remember_identifier', identifier);
+        } catch {}
+      } else {
+        try {
+          localStorage.removeItem('webfarm_remember_identifier');
+        } catch {}
+      }
+
+      const userPayload = response.usuario || {
+        nome: 'Lucas Ramos',
+        email: identifier.includes('@') ? identifier : `${identifier}@fazenda.com.br`,
+        perfil: 'Administrador'
+      };
+
+      if (onLogin) {
+        onLogin(userPayload);
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Falha ao autenticar. Verifique suas credenciais.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -177,7 +211,7 @@ export default function Login({ onLogin, onNavigateRegister }) {
             <div className="w-full max-w-md bg-white/95 backdrop-blur-xl border border-white/40 shadow-2xl shadow-black/30 rounded-3xl p-8 sm:p-10 transition-all duration-300 relative">
               <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-[#237a32]/40 to-transparent" />
 
-              <div className="text-left mb-8">
+              <div className="text-left mb-6">
                 <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-[#237a32]/10 text-[#237a32] mb-3">
                   <Lock className="w-5 h-5 text-[#237a32]" />
                 </div>
@@ -189,7 +223,14 @@ export default function Login({ onLogin, onNavigateRegister }) {
                 </p>
               </div>
 
-              <form className="space-y-5" onSubmit={handleSubmit}>
+              {errorMessage && (
+                <div className="mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{errorMessage}</span>
+                </div>
+              )}
+
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-1.5">
                   <label
                     className="block text-xs font-semibold text-gray-700 uppercase tracking-wider"
@@ -256,7 +297,7 @@ export default function Login({ onLogin, onNavigateRegister }) {
                   </div>
                 </div>
 
-                <div className="flex items-center">
+                <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       className="w-4 h-4 rounded text-[#237a32] focus:ring-[#237a32] border-gray-300 accent-[#237a32]"
@@ -265,21 +306,31 @@ export default function Login({ onLogin, onNavigateRegister }) {
                       onChange={(e) => setRememberMe(e.target.checked)}
                     />
                     <span className="text-xs text-gray-600 font-normal">
-                      Lembrar minhas credenciais neste dispositivo
+                      Lembrar minhas credenciais
                     </span>
                   </label>
                 </div>
 
                 <button
-                  className="w-full mt-2 py-3.5 px-6 rounded-xl bg-[#237a32] hover:bg-[#185824] text-white font-semibold text-sm tracking-wide shadow-lg shadow-[#237a32]/25 hover:shadow-xl hover:shadow-[#185824]/30 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer"
+                  className="w-full mt-2 py-3.5 px-6 rounded-xl bg-[#237a32] hover:bg-[#185824] disabled:bg-slate-400 text-white font-semibold text-sm tracking-wide shadow-lg shadow-[#237a32]/25 hover:shadow-xl hover:shadow-[#185824]/30 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer"
                   type="submit"
+                  disabled={loading}
                 >
-                  <span>Entrar no Sistema</span>
-                  <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Autenticando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Entrar no Sistema</span>
+                      <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                    </>
+                  )}
                 </button>
               </form>
 
-              <div className="relative my-7">
+              <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200" />
                 </div>
@@ -302,7 +353,12 @@ export default function Login({ onLogin, onNavigateRegister }) {
                 </button>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
+              <div className="mt-5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-500 flex items-center justify-between">
+                <span>Acesso padrão demo:</span>
+                <span className="font-mono font-medium text-slate-700">produtor@fazenda.com.br / 123456</span>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
                 <span>Versão 2.4.0 (Enterprise)</span>
                 <span className="text-emerald-700 font-medium">Servidores Operacionais</span>
               </div>

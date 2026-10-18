@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Layers,
   Search,
@@ -10,56 +10,17 @@ import {
   Filter,
   MoreVertical,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Download
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { api } from '../services/api';
+import { exportToCSV } from '../services/exportService';
 
 export default function Animais({ onNavigate, onLogout, user }) {
-  const [animais, setAnimais] = useState([
-    {
-      id: 1,
-      codigo_brinco: 'BR-402',
-      especie: 'Bovino',
-      raca: 'Nelore',
-      sexo: 'Macho',
-      peso: 445,
-      status: 'Saudável',
-      origem: 'Nascido na Fazenda'
-    },
-    {
-      id: 2,
-      codigo_brinco: 'BR-403',
-      especie: 'Bovino',
-      raca: 'Angus',
-      sexo: 'Fêmea',
-      peso: 410,
-      status: 'Prenha',
-      origem: 'Nascido na Fazenda'
-    },
-    {
-      id: 3,
-      codigo_brinco: 'BR-518',
-      especie: 'Bovino',
-      raca: 'Senepol',
-      sexo: 'Macho',
-      peso: 490,
-      status: 'Saudável',
-      origem: 'Comprado'
-    },
-    {
-      id: 4,
-      codigo_brinco: 'BR-620',
-      especie: 'Bovino',
-      raca: 'Holandesa',
-      sexo: 'Fêmea',
-      peso: 530,
-      status: 'Em Tratamento',
-      origem: 'Comprado'
-    }
-  ]);
-
+  const [animais, setAnimais] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,6 +36,21 @@ export default function Animais({ onNavigate, onLogout, user }) {
     status: 'Saudável',
     origem: 'Nascido na Fazenda'
   });
+
+  const loadAnimais = async () => {
+    try {
+      const data = await api.animais.getAll();
+      if (Array.isArray(data)) {
+        setAnimais(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadAnimais();
+  }, []);
 
   const handleOpenAddModal = () => {
     setEditingAnimal(null);
@@ -106,13 +82,18 @@ export default function Animais({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteAnimal = (id) => {
+  const handleDeleteAnimal = async (id) => {
     if (confirm('Tem certeza que deseja remover este animal do rebanho?')) {
-      setAnimais(animais.filter((a) => a.id !== id));
+      try {
+        await api.animais.delete(id);
+        setAnimais((prev) => prev.filter((a) => a.id !== id));
+      } catch (err) {
+        alert('Erro ao excluir animal: ' + err.message);
+      }
     }
   };
 
-  const handleSaveAnimal = (e) => {
+  const handleSaveAnimal = async (e) => {
     e.preventDefault();
 
     if (!formData.codigo_brinco.trim()) {
@@ -120,22 +101,40 @@ export default function Animais({ onNavigate, onLogout, user }) {
       return;
     }
 
-    if (editingAnimal) {
-      setAnimais(
-        animais.map((a) =>
-          a.id === editingAnimal.id ? { ...a, ...formData, peso: Number(formData.peso) || 0 } : a
-        )
-      );
-    } else {
-      const newAnimal = {
-        id: Date.now(),
-        ...formData,
-        peso: Number(formData.peso) || 0
-      };
-      setAnimais([newAnimal, ...animais]);
-    }
+    const payload = {
+      ...formData,
+      peso: Number(formData.peso) || 0
+    };
 
-    setIsModalOpen(false);
+    try {
+      if (editingAnimal) {
+        const updated = await api.animais.update(editingAnimal.id, payload);
+        setAnimais((prev) =>
+          prev.map((a) => (a.id === editingAnimal.id ? { ...a, ...updated } : a))
+        );
+      } else {
+        const created = await api.animais.create(payload);
+        setAnimais((prev) => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Erro ao salvar animal: ' + err.message);
+    }
+  };
+
+  const handleExportarAnimais = () => {
+    const headers = ['ID', 'Código Brinco', 'Espécie', 'Raça', 'Sexo', 'Peso (kg)', 'Status', 'Origem'];
+    const rows = filteredAnimais.map((a) => [
+      a.id,
+      a.codigo_brinco,
+      a.especie,
+      a.raca,
+      a.sexo,
+      a.peso,
+      a.status,
+      a.origem
+    ]);
+    exportToCSV('WebFarm_Inventario_Animais.csv', headers, rows);
   };
 
   const filteredAnimais = animais.filter((animal) => {
@@ -210,6 +209,15 @@ export default function Animais({ onNavigate, onLogout, user }) {
                 <option value="Prenha">Prenha</option>
                 <option value="Em Tratamento">Em Tratamento</option>
               </select>
+
+              <button
+                type="button"
+                onClick={handleExportarAnimais}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Exportar Rebanho em CSV"
+              >
+                <Download className="w-4 h-4" />
+              </button>
             </div>
           </div>
 

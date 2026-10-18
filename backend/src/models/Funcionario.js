@@ -41,11 +41,12 @@ const Funcionario = sequelize.define('Funcionario', {
     type: DataTypes.DECIMAL(10, 2)
   },
   status: {
-    type: DataTypes.STRING
+    type: DataTypes.STRING,
+    defaultValue: 'Ativo'
   },
   id_fazenda: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    defaultValue: 1
   }
 });
 
