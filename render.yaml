@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: webfarm-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false
+
+  - type: web
+    name: webfarm-frontend
+    env: static
+    plan: free
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false
