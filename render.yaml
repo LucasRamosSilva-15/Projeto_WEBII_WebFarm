@@ -11,8 +11,9 @@ services:
       - key: FRONTEND_URL
         sync: false
 
-  - type: static
+  - type: web
     name: webfarm-frontend
+    runtime: static
     buildCommand: npm install --prefix frontend && npm run build --prefix frontend
     staticPublishPath: ./frontend/dist
     routes:
