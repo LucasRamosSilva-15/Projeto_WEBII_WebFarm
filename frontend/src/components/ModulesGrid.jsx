@@ -275,10 +275,10 @@ export default function ModulesGrid({ onNavigateModule }) {
               <div
                 key={item.id}
                 onClick={handleClickAlerta}
-                className={`rounded-2xl p-6 border-2 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group relative overflow-hidden cursor-pointer ${
+                className={`rounded-2xl p-6 border-2 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out flex flex-col justify-between group relative overflow-hidden cursor-pointer active:scale-[0.99] ${
                   temAlertasCriticos
-                    ? 'bg-gradient-to-br from-rose-50/40 to-white border-rose-300'
-                    : 'bg-gradient-to-br from-[#f7fbf8] to-white border-[#237a32]/40'
+                    ? 'bg-gradient-to-br from-rose-50/40 to-white border-rose-300 hover:border-rose-400'
+                    : 'bg-gradient-to-br from-[#f7fbf8] to-white border-[#237a32]/40 hover:border-[#237a32]'
                 }`}
               >
                 <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-[#237a32]/5 rounded-full pointer-events-none" />
@@ -296,7 +296,7 @@ export default function ModulesGrid({ onNavigateModule }) {
                       )}
                       {item.tag}
                     </span>
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${item.iconBox}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${item.iconBox}`}>
                       <Icon className="w-4 h-4" />
                     </div>
                   </div>
@@ -316,7 +316,7 @@ export default function ModulesGrid({ onNavigateModule }) {
                   >
                     {item.footerInfo}
                   </span>
-                  <span className="text-xs font-bold text-[#237a32] group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1">
+                  <span className="text-xs font-bold text-[#237a32] group-hover:translate-x-1.5 transition-transform duration-200 inline-flex items-center gap-1">
                     <span>{item.actionText}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
@@ -329,7 +329,7 @@ export default function ModulesGrid({ onNavigateModule }) {
             <div
               key={item.id}
               onClick={() => onNavigateModule && onNavigateModule(item.id)}
-              className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs hover:border-[#237a32]/40 hover:shadow-md transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+              className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs hover:border-[#237a32]/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out flex flex-col justify-between group cursor-pointer active:scale-[0.99]"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -339,7 +339,7 @@ export default function ModulesGrid({ onNavigateModule }) {
                     {item.tag}
                   </span>
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center group-hover:bg-[#237a32] group-hover:text-white transition-colors duration-200 ${item.iconBox}`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-[#237a32] group-hover:text-white transition-all duration-300 ease-out ${item.iconBox}`}
                   >
                     <Icon className="w-4 h-4" />
                   </div>
@@ -354,7 +354,7 @@ export default function ModulesGrid({ onNavigateModule }) {
 
               <div className="pt-5 mt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500">{item.footerInfo}</span>
-                <span className="text-xs font-bold text-[#237a32] group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1">
+                <span className="text-xs font-bold text-[#237a32] group-hover:translate-x-1.5 transition-transform duration-200 inline-flex items-center gap-1">
                   <span>{item.actionText}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>
@@ -365,8 +365,8 @@ export default function ModulesGrid({ onNavigateModule }) {
       </div>
 
       {modalAberto && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-page-enter">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-backdrop-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-modal-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">

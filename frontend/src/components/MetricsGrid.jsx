@@ -93,7 +93,7 @@ export default function MetricsGrid() {
         return (
           <div
             key={m.id}
-            className={`bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden ${
+            className={`bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-lg hover:-translate-y-1 hover:border-[#237a32]/35 transition-all duration-300 ease-out group relative overflow-hidden ${
               m.borderLeft || ''
             }`}
           >
@@ -102,7 +102,7 @@ export default function MetricsGrid() {
                 {m.label}
               </span>
               <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center ${m.iconColor}`}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-110 ${m.iconColor}`}
               >
                 <Icon className="w-4 h-4" />
               </div>

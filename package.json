@@ -8,7 +8,8 @@
     "dotenv": "^18.0.5",
     "express": "^5.2.1",
     "sequelize": "^6.37.8",
-    "sqlite3": "^6.0.1"
+    "sqlite3": "^6.0.1",
+    "swagger-ui-express": "^5.0.1"
   },
   "scripts": {
     "dev": "npm run dev --prefix frontend",

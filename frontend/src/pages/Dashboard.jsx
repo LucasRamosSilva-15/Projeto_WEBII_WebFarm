@@ -31,6 +31,7 @@ export default function Dashboard({ onNavigate, onLogout, user }) {
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           user={user}
+          onNavigate={onNavigate}
         />
 
         <main className="flex-1 p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-8">

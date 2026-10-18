@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   MapPin,
   ChevronsUpDown,
@@ -11,8 +12,24 @@ import {
   ShieldCheck,
   LogOut
 } from 'lucide-react';
+import FarmProfileModal from './FarmProfileModal';
 
 export default function Sidebar({ activeModule = 'dashboard', onSelectModule, onLogout, user }) {
+  const [isFarmProfileOpen, setIsFarmProfileOpen] = useState(false);
+  const [currentFarmName, setCurrentFarmName] = useState(user?.fazenda || 'São Carlos de Agosto');
+
+  useEffect(() => {
+    if (user?.fazenda) {
+      setCurrentFarmName(user.fazenda);
+    }
+    const handleFarmChange = (e) => {
+      if (e.detail?.nome) {
+        setCurrentFarmName(e.detail.nome);
+      }
+    };
+    window.addEventListener('webfarm:farm-updated', handleFarmChange);
+    return () => window.removeEventListener('webfarm:farm-updated', handleFarmChange);
+  }, [user?.fazenda]);
   const initials = user?.nome
     ? user.nome.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
     : 'WF';
@@ -89,7 +106,9 @@ export default function Sidebar({ activeModule = 'dashboard', onSelectModule, on
           </label>
           <button
             type="button"
-            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 transition-all duration-200 text-left group cursor-pointer"
+            onClick={() => setIsFarmProfileOpen(true)}
+            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 transition-all duration-200 text-left group cursor-pointer active:scale-95"
+            title="Ver e Gerenciar Perfil da Fazenda"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-7 h-7 rounded-lg bg-[#237a32]/40 text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-500/20">
@@ -97,7 +116,7 @@ export default function Sidebar({ activeModule = 'dashboard', onSelectModule, on
               </div>
               <div className="truncate">
                 <p className="text-xs font-semibold text-white group-hover:text-emerald-200 transition-colors truncate">
-                  {user?.fazenda || 'Minha Propriedade'}
+                  {currentFarmName}
                 </p>
                 <p className="text-[10px] text-emerald-200/60 truncate">
                   {user?.email || 'Propriedade Ativa'}
@@ -122,15 +141,15 @@ export default function Sidebar({ activeModule = 'dashboard', onSelectModule, on
                 key={item.id}
                 type="button"
                 onClick={() => onSelectModule && onSelectModule(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs tracking-wide transition-all text-left cursor-pointer ${isActive
-                  ? 'bg-gradient-to-r from-[#237a32]/35 to-transparent text-white border-l-4 border-[#237a32] font-semibold shadow-sm'
-                  : 'text-emerald-100/75 hover:text-white hover:bg-white/[0.06] font-medium group'
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs tracking-wide transition-all duration-200 text-left cursor-pointer active:scale-[0.98] ${isActive
+                  ? 'bg-gradient-to-r from-[#237a32]/35 to-transparent text-white border-l-4 border-[#237a32] font-semibold shadow-sm translate-x-0.5'
+                  : 'text-emerald-100/75 hover:text-white hover:bg-white/[0.08] hover:translate-x-1 font-medium group'
                   }`}
               >
                 <Icon
-                  className={`w-4 h-4 transition-colors ${isActive
-                    ? 'text-emerald-300'
-                    : 'text-emerald-300/60 group-hover:text-emerald-300'
+                  className={`w-4 h-4 transition-transform duration-200 ${isActive
+                    ? 'text-emerald-300 scale-105'
+                    : 'text-emerald-300/60 group-hover:text-emerald-300 group-hover:scale-110'
                     }`}
                 />
                 <span className="flex-1">{item.label}</span>
@@ -190,6 +209,13 @@ export default function Sidebar({ activeModule = 'dashboard', onSelectModule, on
           </button>
         </div>
       </div>
+
+      <FarmProfileModal
+        isOpen={isFarmProfileOpen}
+        onClose={() => setIsFarmProfileOpen(false)}
+        user={user}
+        onFarmUpdate={(novaFazenda) => setCurrentFarmName(novaFazenda.nome)}
+      />
     </aside>
   );
 }

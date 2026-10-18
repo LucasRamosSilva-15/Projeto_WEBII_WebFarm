@@ -73,6 +73,23 @@ export default function App() {
     };
   }, [currentUser]);
 
+  useEffect(() => {
+    const handleFarmUpdated = (e) => {
+      if (e.detail?.nome) {
+        setCurrentUser((prev) => {
+          if (!prev) return prev;
+          const updated = { ...prev, fazenda: e.detail.nome, fazenda_dados: e.detail };
+          try {
+            localStorage.setItem('webfarm_auth_session', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+    };
+    window.addEventListener('webfarm:farm-updated', handleFarmUpdated);
+    return () => window.removeEventListener('webfarm:farm-updated', handleFarmUpdated);
+  }, []);
+
   const navigateTo = (route) => {
     window.history.pushState(null, '', `/${route}`);
     setCurrentRoute(route);

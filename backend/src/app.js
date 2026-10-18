@@ -16,6 +16,8 @@ const veiculoRoutes = require("./routes/veiculoRoutes");
 const manutencaoRoutes = require("./routes/manutencaoRoutes");
 const vacinacaoRoutes = require("./routes/vacinacaoRoutes");
 
+const { swaggerUi, swaggerDocs } = require("./config/swagger");
+
 const app = express();
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
@@ -23,6 +25,14 @@ app.use(cors({
     origin: FRONTEND_URL ? [FRONTEND_URL, 'http://localhost:5173'] : '*'
 }));
 app.use(express.json());
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
+    customSiteTitle: "WebFarm 2.0 API Docs"
+}));
+app.get("/api-docs.json", (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.send(swaggerDocs);
+});
 
 app.use("/auth", authRoutes);
 app.use("/animais", animalRoutes);

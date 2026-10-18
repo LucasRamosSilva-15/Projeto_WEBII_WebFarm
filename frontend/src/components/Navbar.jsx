@@ -1,6 +1,10 @@
-import { Search, Bell, HelpCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Search, HelpCircle } from 'lucide-react';
+import NotificationCenter from './NotificationCenter';
+import HelpCenterModal from './HelpCenterModal';
 
-export default function Navbar({ searchTerm = '', onSearchChange, user }) {
+export default function Navbar({ searchTerm = '', onSearchChange, user, onNavigate }) {
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const firstName = user?.nome ? user.nome.split(' ')[0] : 'Produtor';
 
   return (
@@ -46,23 +50,21 @@ export default function Navbar({ searchTerm = '', onSearchChange, user }) {
           </span>
         </div>
 
-        <button
-          type="button"
-          className="relative p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          title="Notificações"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
-        </button>
+        <NotificationCenter onNavigate={onNavigate} user={user} />
 
         <button
           type="button"
-          className="p-2 text-slate-400 hover:text-[#237a32] hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+          onClick={() => setIsHelpOpen(true)}
+          className="p-2 text-slate-400 hover:text-[#237a32] hover:bg-emerald-50 rounded-xl transition-all duration-200 cursor-pointer active:scale-95"
           title="Ajuda & Documentação"
         >
           <HelpCircle className="w-4 h-4" />
         </button>
       </div>
+
+      {isHelpOpen && (
+        <HelpCenterModal onClose={() => setIsHelpOpen(false)} onNavigate={onNavigate} />
+      )}
     </header>
   );
 }

@@ -280,10 +280,10 @@ export default function GraficosDesempenho({ onNavigate }) {
                 setActiveTab('peso');
                 setHoveredPoint(null);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === 'peso'
                   ? 'bg-white text-[#185824] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
               }`}
             >
               <Scale className="w-3.5 h-3.5" />
@@ -296,10 +296,10 @@ export default function GraficosDesempenho({ onNavigate }) {
                 setActiveTab('fluxo');
                 setHoveredPoint(null);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === 'fluxo'
                   ? 'bg-white text-[#185824] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
@@ -312,10 +312,10 @@ export default function GraficosDesempenho({ onNavigate }) {
                 setActiveTab('safra');
                 setHoveredPoint(null);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === 'safra'
                   ? 'bg-white text-[#185824] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
               }`}
             >
               <Wheat className="w-3.5 h-3.5" />
@@ -327,7 +327,7 @@ export default function GraficosDesempenho({ onNavigate }) {
 
       <div className="p-5 sm:p-6">
         {activeTab === 'peso' && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-slate-500">Filtrar por Raça:</span>
@@ -554,7 +554,7 @@ export default function GraficosDesempenho({ onNavigate }) {
         )}
 
         {activeTab === 'fluxo' && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-medium text-slate-500">
@@ -750,7 +750,7 @@ export default function GraficosDesempenho({ onNavigate }) {
         )}
 
         {activeTab === 'safra' && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-medium text-slate-500">

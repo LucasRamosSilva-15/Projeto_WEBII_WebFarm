@@ -16,6 +16,9 @@ import {
   Loader2
 } from 'lucide-react';
 import { api } from '../services/api';
+import TermosDeUsoModal from '../components/TermosDeUsoModal';
+import LgpdAgroModal from '../components/LgpdAgroModal';
+import EspecialistaAgroModal from '../components/EspecialistaAgroModal';
 
 export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
   const [personType, setPersonType] = useState('fisica');
@@ -32,6 +35,9 @@ export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [isTermosOpen, setIsTermosOpen] = useState(false);
+  const [isLgpdOpen, setIsLgpdOpen] = useState(false);
+  const [isEspecialistaOpen, setIsEspecialistaOpen] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -361,13 +367,21 @@ export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
                 />
                 <span className="text-xs text-gray-600 leading-snug">
                   Concordo com os{' '}
-                  <a href="#termos" className="text-[#237a32] font-semibold hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => setIsTermosOpen(true)}
+                    className="text-[#237a32] font-semibold hover:underline cursor-pointer"
+                  >
                     Termos de Uso
-                  </a>{' '}
+                  </button>{' '}
                   e a{' '}
-                  <a href="#privacidade" className="text-[#237a32] font-semibold hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => setIsLgpdOpen(true)}
+                    className="text-[#237a32] font-semibold hover:underline cursor-pointer"
+                  >
                     Política de Privacidade LGPD Agro
-                  </a>.
+                  </button>.
                 </span>
               </label>
             </div>
@@ -424,19 +438,47 @@ export default function Registre({ onNavigateLogin, onRegisterSuccess }) {
       </main>
 
       <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-emerald-100/70">
-        <p>© 2025 WebFarm Software Agrícola Ltda. Todos os direitos reservados.</p>
+        <p>© 2026 WebFarm Software Agrícola Ltda. Todos os direitos reservados.</p>
         <div className="flex items-center gap-6">
-          <a className="hover:text-white transition-colors duration-200" href="#termos">
+          <button
+            type="button"
+            onClick={() => setIsTermosOpen(true)}
+            className="hover:text-white transition-colors duration-200 cursor-pointer active:scale-95"
+          >
             Termos de Uso
-          </a>
-          <a className="hover:text-white transition-colors duration-200" href="#privacidade">
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsLgpdOpen(true)}
+            className="hover:text-white transition-colors duration-200 cursor-pointer active:scale-95"
+          >
             Privacidade LGPD
-          </a>
-          <a className="hover:text-white transition-colors duration-200" href="#contato">
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsEspecialistaOpen(true)}
+            className="hover:text-white transition-colors duration-200 cursor-pointer active:scale-95"
+          >
             Fale com um Especialista Agro
-          </a>
+          </button>
         </div>
       </footer>
+
+      <TermosDeUsoModal
+        isOpen={isTermosOpen}
+        onClose={() => setIsTermosOpen(false)}
+        onAccept={() => setTermsAccepted(true)}
+      />
+
+      <LgpdAgroModal
+        isOpen={isLgpdOpen}
+        onClose={() => setIsLgpdOpen(false)}
+      />
+
+      <EspecialistaAgroModal
+        isOpen={isEspecialistaOpen}
+        onClose={() => setIsEspecialistaOpen(false)}
+      />
     </div>
   );
 }
