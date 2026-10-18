@@ -8,6 +8,7 @@ import Financeiro from './pages/Financeiro';
 import Maquinas from './pages/Maquinas';
 import Safra from './pages/Safra';
 import Relatorios from './pages/Relatorios';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -23,19 +24,25 @@ export default function App() {
     const validRoutes = ['dashboard', 'animais', 'maquinas', 'equipe', 'financeiro', 'safra', 'relatorios', 'login', 'registro'];
 
     const hash = window.location.hash.replace(/^#\/?/, '').trim();
-    if (validRoutes.includes(hash)) {
-      return hash;
+    if (hash) {
+      if (validRoutes.includes(hash)) {
+        return hash;
+      }
+      return '404';
     }
 
     const rawPath = window.location.pathname.startsWith('/')
       ? window.location.pathname.slice(1)
       : window.location.pathname;
     const path = rawPath.split('/')[0].trim();
+    if (!path) {
+      return currentUser ? 'dashboard' : 'login';
+    }
     if (validRoutes.includes(path)) {
       return path;
     }
 
-    return currentUser ? 'dashboard' : 'login';
+    return '404';
   };
 
   const [currentRoute, setCurrentRoute] = useState(getRouteFromUrl);
@@ -43,6 +50,11 @@ export default function App() {
   useEffect(() => {
     const handleUrlChange = () => {
       const route = getRouteFromUrl();
+
+      if (route === '404') {
+        setCurrentRoute('404');
+        return;
+      }
 
       if (!currentUser && (route === 'dashboard' || route === 'animais' || route === 'maquinas' || route === 'equipe' || route === 'financeiro' || route === 'safra' || route === 'relatorios')) {
         window.history.replaceState(null, '', '/login');
@@ -181,6 +193,13 @@ export default function App() {
         <Registre
           onNavigateLogin={() => navigateTo('login')}
           onRegisterSuccess={handleLogin}
+        />
+      )}
+
+      {(currentRoute === '404' || !['dashboard', 'animais', 'maquinas', 'equipe', 'financeiro', 'safra', 'relatorios', 'login', 'registro'].includes(currentRoute)) && (
+        <NotFound
+          onNavigate={(target) => navigateTo(target)}
+          user={currentUser}
         />
       )}
     </div>
