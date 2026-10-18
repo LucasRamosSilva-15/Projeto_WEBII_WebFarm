@@ -18,6 +18,10 @@ const swaggerDocs = {
   },
   servers: [
     {
+      url: 'https://webfarm-backend-x47z.onrender.com',
+      description: 'Servidor de Produção (Render)'
+    },
+    {
       url: 'http://localhost:3000',
       description: 'Servidor de Desenvolvimento Local'
     }
@@ -460,6 +464,81 @@ const swaggerDocs = {
         summary: 'Excluir fazenda',
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: { 200: { description: 'Fazenda removida' } }
+      }
+    },
+    '/produtores': {
+      get: {
+        tags: ['Produtores'],
+        summary: 'Listar todos os produtores rurais cadastrados',
+        responses: { 200: { description: 'Lista de produtores retornada com sucesso' } }
+      },
+      post: {
+        tags: ['Produtores'],
+        summary: 'Cadastrar novo produtor rural',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['nome', 'cpf_cnpj'],
+                properties: {
+                  nome: { type: 'string', example: 'Lucas Ramos Silva' },
+                  cpf_cnpj: { type: 'string', example: '111.111.111-11' },
+                  tipo_pessoa: { type: 'string', enum: ['fisica', 'juridica'], example: 'fisica' },
+                  email: { type: 'string', example: 'lucasramossme@gmail.com' },
+                  senha: { type: 'string', example: '123456' },
+                  cell: { type: 'string', example: '(11) 11111-1111' }
+                }
+              }
+            }
+          }
+        },
+        responses: { 201: { description: 'Produtor rural cadastrado com sucesso' } }
+      }
+    },
+    '/produtores/{id}': {
+      get: {
+        tags: ['Produtores'],
+        summary: 'Buscar produtor rural por ID com fazendas associadas',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          200: { description: 'Produtor rural encontrado' },
+          404: { description: 'Produtor não encontrado' }
+        }
+      },
+      put: {
+        tags: ['Produtores'],
+        summary: 'Atualizar dados cadastrais do produtor rural',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  nome: { type: 'string', example: 'Lucas Ramos Silva' },
+                  cell: { type: 'string', example: '(11) 99999-9999' },
+                  email: { type: 'string', example: 'lucas@webfarm.com' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Produtor rural atualizado com sucesso' },
+          404: { description: 'Produtor não encontrado' }
+        }
+      },
+      delete: {
+        tags: ['Produtores'],
+        summary: 'Excluir cadastro do produtor rural',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          200: { description: 'Produtor rural excluído com sucesso' },
+          404: { description: 'Produtor não encontrado' }
+        }
       }
     },
     '/historico': {

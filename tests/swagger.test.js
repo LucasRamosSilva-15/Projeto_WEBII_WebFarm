@@ -14,6 +14,8 @@ describe('Documentação Swagger e OpenAPI', () => {
     expect(res.body.paths).toHaveProperty('/producoes');
     expect(res.body.paths).toHaveProperty('/transacoes');
     expect(res.body.paths).toHaveProperty('/fazendas');
+    expect(res.body.paths).toHaveProperty('/produtores');
+    expect(res.body.paths).toHaveProperty('/produtores/{id}');
   });
 
   it('deve carregar a interface interativa do Swagger UI em /api-docs', async () => {
