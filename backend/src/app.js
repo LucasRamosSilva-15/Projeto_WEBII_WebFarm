@@ -20,7 +20,10 @@ const { Op } = require("sequelize");
 
 const app = express();
 
-app.use(cors());
+const FRONTEND_URL = process.env.FRONTEND_URL;
+app.use(cors({
+    origin: FRONTEND_URL ? [FRONTEND_URL, 'http://localhost:5173'] : '*'
+}));
 app.use(express.json());
 
 function hashPassword(password) {
