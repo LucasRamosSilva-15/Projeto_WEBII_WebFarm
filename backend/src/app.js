@@ -20,9 +20,37 @@ const { swaggerUi, swaggerDocs } = require("./config/swagger");
 
 const app = express();
 
-const FRONTEND_URL = process.env.FRONTEND_URL;
+const rawFrontendUrl = process.env.FRONTEND_URL || '';
+const configuredOrigins = rawFrontendUrl
+  .split(',')
+  .map((u) => u.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  ...configuredOrigins
+];
+
 app.use(cors({
-    origin: FRONTEND_URL ? [FRONTEND_URL, 'http://localhost:5173'] : '*'
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    if (
+      allowedOrigins.includes(cleanOrigin) ||
+      cleanOrigin.endsWith('.vercel.app') ||
+      cleanOrigin.endsWith('.onrender.com') ||
+      process.env.NODE_ENV !== 'production'
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(express.json());
 
