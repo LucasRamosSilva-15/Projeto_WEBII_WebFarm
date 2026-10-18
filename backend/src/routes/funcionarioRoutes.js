@@ -1,7 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const FuncionariosController = require('../controllers/FuncionariosController');
+const FuncionarioController = require('../controllers/FuncionarioController');
 
-router.post('/', FuncionariosController.cadastrar);
+router.get('/', FuncionarioController.listar);
+router.get('/:id', FuncionarioController.buscarPorId);
+router.post('/', FuncionarioController.cadastrar);
+router.put('/:id', FuncionarioController.atualizar);
+router.delete('/:id', FuncionarioController.excluir);
 
 module.exports = router;

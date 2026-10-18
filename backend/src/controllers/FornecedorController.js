@@ -1,14 +1,72 @@
-const FornecedorService = require('../services/FornecedorService');
+const { Fornecedor, Fazenda } = require("../models");
+const { handleSequelizeError, getActiveFazendaId } = require("../utils/sequelizeHelpers");
 
 class FornecedorController {
+    async listar(req, res) {
+        try {
+            const fornecedores = await Fornecedor.findAll({
+                include: [{ model: Fazenda, attributes: ['id', 'nome'] }],
+                order: [['id', 'DESC']]
+            });
+            res.json(fornecedores);
+        } catch (erro) {
+            handleSequelizeError(erro, res, "Erro ao buscar fornecedores.");
+        }
+    }
+
+    async buscarPorId(req, res) {
+        try {
+            const { id } = req.params;
+            const fornecedor = await Fornecedor.findByPk(id, {
+                include: [{ model: Fazenda, attributes: ['id', 'nome'] }]
+            });
+            if (!fornecedor) {
+                return res.status(404).json({ mensagem: "Fornecedor não encontrado." });
+            }
+            res.json(fornecedor);
+        } catch (erro) {
+            handleSequelizeError(erro, res, "Erro ao buscar fornecedor.");
+        }
+    }
+
     async cadastrar(req, res) {
         try {
-            const dadosFornecedor = req.body;
-            const novoFornecedor = await FornecedorService.criarFornecedor(dadosFornecedor);
+            const farmId = await getActiveFazendaId(req.body.id_fazenda);
+            const fornecedor = await Fornecedor.create({
+                ...req.body,
+                id_fazenda: farmId
+            });
+            res.status(201).json(fornecedor);
+        } catch (erro) {
+            handleSequelizeError(erro, res, "Erro ao cadastrar fornecedor.");
+        }
+    }
 
-            return res.status(201).json(novoFornecedor);
-        } catch (error) {
-            return res.status(400).json({ erro: error.message });
+    async atualizar(req, res) {
+        try {
+            const { id } = req.params;
+            const fornecedor = await Fornecedor.findByPk(id);
+            if (!fornecedor) {
+                return res.status(404).json({ mensagem: "Fornecedor não encontrado." });
+            }
+            await fornecedor.update(req.body);
+            res.json(fornecedor);
+        } catch (erro) {
+            handleSequelizeError(erro, res, "Erro ao atualizar fornecedor.");
+        }
+    }
+
+    async excluir(req, res) {
+        try {
+            const { id } = req.params;
+            const fornecedor = await Fornecedor.findByPk(id);
+            if (!fornecedor) {
+                return res.status(404).json({ mensagem: "Fornecedor não encontrado." });
+            }
+            await fornecedor.destroy();
+            res.json({ mensagem: "Fornecedor removido com sucesso!" });
+        } catch (erro) {
+            handleSequelizeError(erro, res, "Erro ao remover fornecedor.");
         }
     }
 }
