@@ -20,8 +20,10 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ConfirmModal from '../components/ConfirmModal';
 import { api } from '../services/api';
 import { exportToCSV } from '../services/exportService';
+import { showToast } from '../utils/toast';
 
 export default function Maquinas({ onNavigate, onLogout, user }) {
   const [maquinas, setMaquinas] = useState([]);
@@ -30,6 +32,7 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMaquina, setEditingMaquina] = useState(null);
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [formData, setFormData] = useState({
     prefixo: '',
@@ -99,14 +102,16 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteMaquina = async (id) => {
-    if (confirm('Deseja realmente remover esta máquina/veículo do cadastro?')) {
-      try {
-        await api.maquinas.delete(id);
-        setMaquinas((prev) => prev.filter((m) => m.id !== id));
-      } catch (err) {
-        alert('Erro ao excluir máquina: ' + err.message);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.maquinas.delete(deleteTarget.id);
+      setMaquinas((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+      showToast('Máquina removida com sucesso!', 'success');
+    } catch (err) {
+      showToast('Erro ao excluir máquina: ' + err.message, 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -114,7 +119,7 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
     e.preventDefault();
 
     if (!formData.prefixo.trim() || !formData.modelo.trim() || !formData.marca.trim()) {
-      alert('Prefixo, marca e modelo são obrigatórios.');
+      showToast('Prefixo, marca e modelo são obrigatórios.', 'warning');
       return;
     }
 
@@ -129,17 +134,23 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
         setMaquinas((prev) =>
           prev.map((m) => (m.id === editingMaquina.id ? { ...m, ...updated } : m))
         );
+        showToast('Máquina atualizada com sucesso!', 'success');
       } else {
         const created = await api.maquinas.create(payload);
         setMaquinas((prev) => [created, ...prev]);
+        showToast('Máquina cadastrada com sucesso!', 'success');
       }
       setIsModalOpen(false);
     } catch (err) {
-      alert('Erro ao salvar máquina: ' + err.message);
+      showToast('Erro ao salvar máquina: ' + err.message, 'error');
     }
   };
 
   const handleExportarMaquinas = () => {
+    if (!filteredMaquinas.length) {
+      showToast('Nenhuma máquina para exportar.', 'warning');
+      return;
+    }
     const headers = ['ID', 'Prefixo', 'Tipo', 'Marca', 'Modelo', 'Ano', 'Horímetro (hrs)', 'Status', 'Operador', 'Última Revisão', 'Próxima Revisão'];
     const rows = filteredMaquinas.map((m) => [
       m.id,
@@ -155,6 +166,26 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
       m.proximaRevisao || '-'
     ]);
     exportToCSV('WebFarm_Inventario_Maquinas.csv', headers, rows);
+    showToast(`Exportação de ${filteredMaquinas.length} máquinas concluída!`, 'success');
+  };
+
+  const handleExportarRelatorioManutencao = () => {
+    if (!maquinas.length) {
+      showToast('Nenhuma máquina cadastrada para gerar relatório.', 'warning');
+      return;
+    }
+    const headers = ['Prefixo', 'Modelo', 'Marca', 'Horímetro (hrs)', 'Status', 'Última Revisão', 'Próxima Revisão'];
+    const rows = maquinas.map((m) => [
+      m.prefixo,
+      m.modelo,
+      m.marca,
+      m.horimetro,
+      m.status,
+      m.ultimaRevisao || 'N/A',
+      m.proximaRevisao || 'Pendente'
+    ]);
+    exportToCSV('WebFarm_Manutencao_Frota.csv', headers, rows);
+    showToast('Relatório de manutenções da frota gerado com sucesso!', 'success');
   };
 
   const filteredMaquinas = maquinas.filter((maq) => {
@@ -202,9 +233,7 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  alert(`Gerando relatório de manutenção preventiva de toda a frota...`);
-                }}
+                onClick={handleExportarRelatorioManutencao}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-xs cursor-pointer"
               >
                 <Wrench className="w-4 h-4 text-slate-500" />
@@ -437,7 +466,7 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteMaquina(maq.id)}
+                              onClick={() => setDeleteTarget(maq)}
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Remover Máquina"
                             >
@@ -691,6 +720,16 @@ export default function Maquinas({ onNavigate, onLogout, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Remover Máquina"
+        message="Deseja realmente remover esta máquina/veículo do cadastro da fazenda?"
+        itemName={deleteTarget ? `${deleteTarget.prefixo} - ${deleteTarget.marca} ${deleteTarget.modelo}` : ''}
+        confirmText="Sim, Excluir"
+      />
     </div>
   );
 }

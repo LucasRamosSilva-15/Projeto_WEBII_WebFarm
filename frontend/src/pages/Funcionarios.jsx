@@ -17,7 +17,10 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ConfirmModal from '../components/ConfirmModal';
 import { api } from '../services/api';
+import { exportToCSV } from '../services/exportService';
+import { showToast } from '../utils/toast';
 
 export default function Funcionarios({ onNavigate, onLogout, user }) {
   const [funcionarios, setFuncionarios] = useState([]);
@@ -26,6 +29,7 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFuncionario, setEditingFuncionario] = useState(null);
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -82,14 +86,16 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteFuncionario = async (id) => {
-    if (confirm('Tem certeza que deseja remover este funcionário da equipe?')) {
-      try {
-        await api.funcionarios.delete(id);
-        setFuncionarios((prev) => prev.filter((f) => f.id !== id));
-      } catch (err) {
-        alert('Erro ao excluir funcionário: ' + err.message);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.funcionarios.delete(deleteTarget.id);
+      setFuncionarios((prev) => prev.filter((f) => f.id !== deleteTarget.id));
+      showToast('Funcionário removido com sucesso!', 'success');
+    } catch (err) {
+      showToast('Erro ao excluir funcionário: ' + err.message, 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -97,7 +103,7 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
     e.preventDefault();
 
     if (!formData.nome.trim() || !formData.cpf.trim()) {
-      alert('Nome e CPF são campos obrigatórios.');
+      showToast('Nome e CPF são campos obrigatórios.', 'warning');
       return;
     }
 
@@ -112,14 +118,36 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
         setFuncionarios((prev) =>
           prev.map((f) => (f.id === editingFuncionario.id ? { ...f, ...updated } : f))
         );
+        showToast('Funcionário atualizado com sucesso!', 'success');
       } else {
         const created = await api.funcionarios.create(payload);
         setFuncionarios((prev) => [created, ...prev]);
+        showToast('Funcionário cadastrado com sucesso!', 'success');
       }
       setIsModalOpen(false);
     } catch (err) {
-      alert('Erro ao salvar funcionário: ' + err.message);
+      showToast('Erro ao salvar funcionário: ' + err.message, 'error');
     }
+  };
+
+  const handleExportarFuncionarios = () => {
+    if (!filteredFuncionarios.length) {
+      showToast('Nenhum colaborador para exportar.', 'warning');
+      return;
+    }
+    const headers = ['ID', 'Nome', 'CPF', 'Função / Cargo', 'Telefone', 'Salário (R$)', 'Status', 'Data Admissão'];
+    const rows = filteredFuncionarios.map((f) => [
+      f.id,
+      f.nome,
+      f.cpf,
+      f.funcao,
+      f.cell || f.telefone || '-',
+      Number(f.salario || 0).toFixed(2),
+      f.status,
+      f.data_admissao || '-'
+    ]);
+    exportToCSV('WebFarm_Equipe_Colaboradores.csv', headers, rows);
+    showToast(`Exportação de ${filteredFuncionarios.length} colaboradores concluída!`, 'success');
   };
 
   const filteredFuncionarios = funcionarios.filter((func) => {
@@ -276,7 +304,7 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteFuncionario(func.id)}
+                              onClick={() => setDeleteTarget(func)}
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Remover Funcionário"
                             >
@@ -327,7 +355,7 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
             <button
               type="button"
               onClick={() => {
-                alert(`Exportando folha e dados de ${funcionarios.length} colaboradores...`);
+                handleExportarFuncionarios();
                 setIsBottomMenuOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer text-left"
@@ -470,6 +498,16 @@ export default function Funcionarios({ onNavigate, onLogout, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Remover Colaborador"
+        message="Tem certeza que deseja remover este funcionário da equipe?"
+        itemName={deleteTarget ? `${deleteTarget.nome} (${deleteTarget.funcao})` : ''}
+        confirmText="Sim, Excluir"
+      />
     </div>
   );
 }

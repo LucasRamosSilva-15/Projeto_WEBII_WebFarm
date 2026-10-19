@@ -28,9 +28,11 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ConfirmModal from '../components/ConfirmModal';
 import GraficosDesempenho from '../components/GraficosDesempenho';
 import { api } from '../services/api';
 import { exportToCSV, exportToJSON, exportToPrintableReport } from '../services/exportService';
+import { showToast } from '../utils/toast';
 
 export default function Relatorios({ onNavigate, onLogout, user }) {
   const [metricas, setMetricas] = useState({
@@ -50,6 +52,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [formData, setFormData] = useState({
     modulo: 'Financeiro',
@@ -163,14 +166,16 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteLog = async (id) => {
-    if (confirm('Deseja realmente remover este registro de histórico?')) {
-      try {
-        await api.historico.delete(id);
-        setHistoricoLogs((prev) => prev.filter((log) => log.id !== id));
-      } catch (err) {
-        alert('Erro ao excluir registro: ' + err.message);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.historico.delete(deleteTarget.id);
+      setHistoricoLogs((prev) => prev.filter((log) => log.id !== deleteTarget.id));
+      showToast('Registro de histórico removido com sucesso!', 'success');
+    } catch (err) {
+      showToast('Erro ao excluir registro: ' + err.message, 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -178,7 +183,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     e.preventDefault();
 
     if (!formData.acao.trim() || !formData.detalhes.trim()) {
-      alert('Ação e detalhes são obrigatórios.');
+      showToast('Ação e detalhes são obrigatórios.', 'warning');
       return;
     }
 
@@ -192,9 +197,10 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
     try {
       const criado = await api.historico.create(payload);
       setHistoricoLogs((prev) => [criado, ...prev]);
+      showToast('Registro de histórico salvo com sucesso!', 'success');
       setIsModalOpen(false);
     } catch (err) {
-      alert('Erro ao registrar histórico: ' + err.message);
+      showToast('Erro ao registrar histórico: ' + err.message, 'error');
     }
   };
 
@@ -293,8 +299,9 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
       } else {
         exportToCSV(`${filename}.csv`, headers, rows);
       }
+      showToast(`Exportação do relatório ${rel.titulo} concluída!`, 'success');
     } catch (err) {
-      alert('Erro ao exportar dados: ' + err.message);
+      showToast('Erro ao exportar dados: ' + err.message, 'error');
     }
   };
 
@@ -420,13 +427,18 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
           rows
         );
       }
+      showToast('Relatório executivo gerado com sucesso!', 'success');
       setIsModalOpen(false);
     } catch (err) {
-      alert('Erro ao gerar relatório: ' + err.message);
+      showToast('Erro ao gerar relatório: ' + err.message, 'error');
     }
   };
 
   const handleExportarHistoricoCompleto = () => {
+    if (!filteredLogs.length) {
+      showToast('Nenhum registro de auditoria para exportar.', 'warning');
+      return;
+    }
     const headers = ['Data', 'Módulo', 'Ação', 'Detalhes', 'Responsável', 'Protocolo'];
     const rows = filteredLogs.map((l) => [
       l.data,
@@ -437,6 +449,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
       l.protocolo
     ]);
     exportToCSV('WebFarm_Historico_Auditoria_Completo.csv', headers, rows);
+    showToast(`Exportação de ${filteredLogs.length} registros de auditoria concluída!`, 'success');
   };
 
   const filteredLogs = historicoLogs
@@ -787,7 +800,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                             <td className="py-3.5 px-5 text-right whitespace-nowrap">
                               <button
                                 type="button"
-                                onClick={() => handleDeleteLog(log.id)}
+                                onClick={() => setDeleteTarget(log)}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                 title="Remover Log"
                               >
@@ -845,7 +858,7 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteLog(log.id)}
+                                  onClick={() => setDeleteTarget(log)}
                                   className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
                                   title="Remover Registro"
                                 >
@@ -1134,6 +1147,16 @@ export default function Relatorios({ onNavigate, onLogout, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Remover Registro de Histórico"
+        message="Deseja realmente remover este registro de log do histórico de auditoria?"
+        itemName={deleteTarget ? `${deleteTarget.acao} (${deleteTarget.protocolo || deleteTarget.modulo})` : ''}
+        confirmText="Sim, Excluir"
+      />
     </div>
   );
 }

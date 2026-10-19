@@ -16,8 +16,10 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ConfirmModal from '../components/ConfirmModal';
 import { api } from '../services/api';
 import { exportToCSV } from '../services/exportService';
+import { showToast } from '../utils/toast';
 
 export default function Animais({ onNavigate, onLogout, user }) {
   const [animais, setAnimais] = useState([]);
@@ -26,6 +28,7 @@ export default function Animais({ onNavigate, onLogout, user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAnimal, setEditingAnimal] = useState(null);
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [formData, setFormData] = useState({
     codigo_brinco: '',
@@ -82,14 +85,16 @@ export default function Animais({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteAnimal = async (id) => {
-    if (confirm('Tem certeza que deseja remover este animal do rebanho?')) {
-      try {
-        await api.animais.delete(id);
-        setAnimais((prev) => prev.filter((a) => a.id !== id));
-      } catch (err) {
-        alert('Erro ao excluir animal: ' + err.message);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.animais.delete(deleteTarget.id);
+      setAnimais((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      showToast('Animal removido com sucesso!', 'success');
+    } catch (err) {
+      showToast('Erro ao excluir animal: ' + err.message, 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -97,7 +102,7 @@ export default function Animais({ onNavigate, onLogout, user }) {
     e.preventDefault();
 
     if (!formData.codigo_brinco.trim()) {
-      alert('O código do brinco é obrigatório.');
+      showToast('O código do brinco é obrigatório.', 'warning');
       return;
     }
 
@@ -112,17 +117,23 @@ export default function Animais({ onNavigate, onLogout, user }) {
         setAnimais((prev) =>
           prev.map((a) => (a.id === editingAnimal.id ? { ...a, ...updated } : a))
         );
+        showToast('Animal atualizado com sucesso!', 'success');
       } else {
         const created = await api.animais.create(payload);
         setAnimais((prev) => [created, ...prev]);
+        showToast('Animal cadastrado com sucesso!', 'success');
       }
       setIsModalOpen(false);
     } catch (err) {
-      alert('Erro ao salvar animal: ' + err.message);
+      showToast('Erro ao salvar animal: ' + err.message, 'error');
     }
   };
 
   const handleExportarAnimais = () => {
+    if (!filteredAnimais.length) {
+      showToast('Nenhum animal para exportar.', 'warning');
+      return;
+    }
     const headers = ['ID', 'Código Brinco', 'Espécie', 'Raça', 'Sexo', 'Peso (kg)', 'Status', 'Origem'];
     const rows = filteredAnimais.map((a) => [
       a.id,
@@ -135,6 +146,7 @@ export default function Animais({ onNavigate, onLogout, user }) {
       a.origem
     ]);
     exportToCSV('WebFarm_Inventario_Animais.csv', headers, rows);
+    showToast(`Exportação de ${filteredAnimais.length} animais concluída!`, 'success');
   };
 
   const filteredAnimais = animais.filter((animal) => {
@@ -288,7 +300,7 @@ export default function Animais({ onNavigate, onLogout, user }) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteAnimal(animal.id)}
+                              onClick={() => setDeleteTarget(animal)}
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Remover Animal"
                             >
@@ -339,7 +351,7 @@ export default function Animais({ onNavigate, onLogout, user }) {
             <button
               type="button"
               onClick={() => {
-                alert(`Exportando lista de ${animais.length} animais...`);
+                handleExportarAnimais();
                 setIsBottomMenuOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer text-left"
@@ -495,6 +507,16 @@ export default function Animais({ onNavigate, onLogout, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Remover Animal"
+        message="Tem certeza que deseja remover este animal do rebanho?"
+        itemName={deleteTarget ? `${deleteTarget.codigo_brinco} (${deleteTarget.especie} - ${deleteTarget.raca})` : ''}
+        confirmText="Sim, Excluir"
+      />
     </div>
   );
 }

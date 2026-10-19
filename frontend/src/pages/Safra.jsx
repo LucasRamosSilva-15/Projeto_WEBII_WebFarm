@@ -20,8 +20,10 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ConfirmModal from '../components/ConfirmModal';
 import { api } from '../services/api';
 import { exportToCSV } from '../services/exportService';
+import { showToast } from '../utils/toast';
 
 export default function Safra({ onNavigate, onLogout, user }) {
   const [talhoes, setTalhoes] = useState([]);
@@ -30,6 +32,7 @@ export default function Safra({ onNavigate, onLogout, user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTalhao, setEditingTalhao] = useState(null);
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -96,14 +99,16 @@ export default function Safra({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteTalhao = async (id) => {
-    if (confirm('Tem certeza que deseja excluir o registro deste talhão/safra?')) {
-      try {
-        await api.producoes.delete(id);
-        setTalhoes((prev) => prev.filter((t) => t.id !== id));
-      } catch (err) {
-        alert('Erro ao excluir talhão: ' + err.message);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.producoes.delete(deleteTarget.id);
+      setTalhoes((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+      showToast('Talhão removido com sucesso!', 'success');
+    } catch (err) {
+      showToast('Erro ao excluir talhão: ' + err.message, 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -111,7 +116,7 @@ export default function Safra({ onNavigate, onLogout, user }) {
     e.preventDefault();
 
     if (!formData.nome.trim() || !formData.cultura.trim() || !formData.areaHa) {
-      alert('Identificador do talhão, cultura e área são obrigatórios.');
+      showToast('Identificador do talhão, cultura e área são obrigatórios.', 'warning');
       return;
     }
 
@@ -126,17 +131,23 @@ export default function Safra({ onNavigate, onLogout, user }) {
         setTalhoes((prev) =>
           prev.map((t) => (t.id === editingTalhao.id ? { ...t, ...updated } : t))
         );
+        showToast('Talhão atualizado com sucesso!', 'success');
       } else {
         const created = await api.producoes.create(payload);
         setTalhoes((prev) => [created, ...prev]);
+        showToast('Talhão cadastrado com sucesso!', 'success');
       }
       setIsModalOpen(false);
     } catch (err) {
-      alert('Erro ao salvar talhão: ' + err.message);
+      showToast('Erro ao salvar talhão: ' + err.message, 'error');
     }
   };
 
   const handleExportarSafra = () => {
+    if (!filteredTalhoes.length) {
+      showToast('Nenhum talhão para exportar.', 'warning');
+      return;
+    }
     const headers = ['ID', 'Talhão / Lote', 'Cultura', 'Variedade', 'Área (ha)', 'Data Plantio', 'Estágio', 'Previsão Colheita', 'Produtividade Estimada', 'Status'];
     const rows = filteredTalhoes.map((t) => [
       t.id,
@@ -151,6 +162,25 @@ export default function Safra({ onNavigate, onLogout, user }) {
       t.status
     ]);
     exportToCSV('WebFarm_Caderno_Campo_Safra.csv', headers, rows);
+    showToast(`Exportação de ${filteredTalhoes.length} talhões concluída!`, 'success');
+  };
+
+  const handleManejoSafra = () => {
+    if (!talhoes.length) {
+      showToast('Nenhum talhão cadastrado para manejo de safra.', 'warning');
+      return;
+    }
+    const headers = ['Talhão', 'Cultura', 'Variedade', 'Área (ha)', 'Estágio', 'Status'];
+    const rows = talhoes.map((t) => [
+      t.nome,
+      t.cultura,
+      t.variedade || 'Padrão',
+      t.areaHa,
+      t.estagio,
+      t.status
+    ]);
+    exportToCSV('WebFarm_Planejamento_Manejo_Safra.csv', headers, rows);
+    showToast('Planejamento agronômico exportado com sucesso!', 'success');
   };
 
   const filteredTalhoes = talhoes.filter((t) => {
@@ -197,9 +227,7 @@ export default function Safra({ onNavigate, onLogout, user }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  alert('Gerando mapa agronômico e planejamento de dessecação...');
-                }}
+                onClick={handleManejoSafra}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-xs cursor-pointer"
               >
                 <Activity className="w-4 h-4 text-slate-500" />
@@ -425,7 +453,7 @@ export default function Safra({ onNavigate, onLogout, user }) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteTalhao(t.id)}
+                              onClick={() => setDeleteTarget(t)}
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Remover Talhão"
                             >
@@ -464,7 +492,7 @@ export default function Safra({ onNavigate, onLogout, user }) {
             <button
               type="button"
               onClick={() => {
-                alert('Abertura de registro de pulverização e defensivos agrícolas...');
+                showToast('Módulo de defensivos e pulverização sincronizado com a safra.', 'info');
                 setIsBottomMenuOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-[#237a32] rounded-xl transition-colors cursor-pointer text-left"
@@ -677,6 +705,16 @@ export default function Safra({ onNavigate, onLogout, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Remover Talhão"
+        message="Tem certeza que deseja excluir o registro deste talhão/safra?"
+        itemName={deleteTarget ? `${deleteTarget.nome} (${deleteTarget.cultura} - ${deleteTarget.areaHa} ha)` : ''}
+        confirmText="Sim, Excluir"
+      />
     </div>
   );
 }

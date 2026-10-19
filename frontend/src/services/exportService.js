@@ -1,3 +1,5 @@
+import { showToast } from '../utils/toast';
+
 export function exportToCSV(filename, headers, rows) {
   const processCell = (cell) => {
     if (cell === null || cell === undefined) return '""';
@@ -42,7 +44,7 @@ export function exportToPrintableReport(title, subtitle, metadata = {}, headers 
 
   const printWindow = window.open('', '_blank', 'width=1000,height=750');
   if (!printWindow) {
-    alert('Por favor, permita pop-ups para gerar a impressão do relatório.');
+    showToast('Por favor, permita pop-ups para gerar a impressão do relatório.', 'warning');
     return;
   }
 

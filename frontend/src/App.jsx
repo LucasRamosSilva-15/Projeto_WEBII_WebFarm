@@ -9,6 +9,7 @@ import Maquinas from './pages/Maquinas';
 import Safra from './pages/Safra';
 import Relatorios from './pages/Relatorios';
 import NotFound from './pages/NotFound';
+import ToastContainer from './components/ToastContainer';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -202,6 +203,8 @@ export default function App() {
           user={currentUser}
         />
       )}
+
+      <ToastContainer />
     </div>
   );
 }

@@ -20,8 +20,10 @@ import {
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ConfirmModal from '../components/ConfirmModal';
 import { api } from '../services/api';
 import { exportToCSV } from '../services/exportService';
+import { showToast } from '../utils/toast';
 
 export default function Financeiro({ onNavigate, onLogout, user }) {
   const [movimentacoes, setMovimentacoes] = useState([]);
@@ -30,6 +32,7 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [formData, setFormData] = useState({
     tipo: 'entrada',
@@ -96,14 +99,16 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
     setIsBottomMenuOpen(false);
   };
 
-  const handleDeleteMovimentacao = async (id) => {
-    if (confirm('Tem certeza que deseja remover este lançamento financeiro?')) {
-      try {
-        await api.transacoes.delete(id);
-        setMovimentacoes((prev) => prev.filter((m) => m.id !== id));
-      } catch (err) {
-        alert('Erro ao excluir transação: ' + err.message);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.transacoes.delete(deleteTarget.id);
+      setMovimentacoes((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+      showToast('Lançamento financeiro removido com sucesso!', 'success');
+    } catch (err) {
+      showToast('Erro ao excluir transação: ' + err.message, 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -111,7 +116,7 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
     e.preventDefault();
 
     if (!formData.descricao.trim() || !formData.valor) {
-      alert('Descrição e valor são obrigatórios.');
+      showToast('Descrição e valor são obrigatórios.', 'warning');
       return;
     }
 
@@ -126,17 +131,23 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
         setMovimentacoes((prev) =>
           prev.map((m) => (m.id === editingMovimentacao.id ? { ...m, ...updated } : m))
         );
+        showToast('Lançamento atualizado com sucesso!', 'success');
       } else {
         const created = await api.transacoes.create(payload);
         setMovimentacoes((prev) => [created, ...prev]);
+        showToast('Lançamento cadastrado com sucesso!', 'success');
       }
       setIsModalOpen(false);
     } catch (err) {
-      alert('Erro ao salvar movimentação: ' + err.message);
+      showToast('Erro ao salvar movimentação: ' + err.message, 'error');
     }
   };
 
   const handleExportarExtrato = () => {
+    if (!filteredMovimentacoes.length) {
+      showToast('Nenhum lançamento financeiro para exportar.', 'warning');
+      return;
+    }
     const headers = ['ID', 'Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)', 'Status', 'Comprovante'];
     const rows = filteredMovimentacoes.map((m) => [
       m.id,
@@ -149,6 +160,7 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
       m.comprovante || '-'
     ]);
     exportToCSV('WebFarm_Extrato_Financeiro.csv', headers, rows);
+    showToast(`Exportação de ${filteredMovimentacoes.length} lançamentos concluída!`, 'success');
   };
 
   const filteredMovimentacoes = movimentacoes.filter((mov) => {
@@ -396,7 +408,7 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteMovimentacao(mov.id)}
+                              onClick={() => setDeleteTarget(mov)}
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Remover Lançamento"
                             >
@@ -661,6 +673,16 @@ export default function Financeiro({ onNavigate, onLogout, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Remover Lançamento"
+        message="Tem certeza que deseja remover este lançamento financeiro?"
+        itemName={deleteTarget ? `${deleteTarget.descricao} (R$ ${Number(deleteTarget.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : ''}
+        confirmText="Sim, Excluir"
+      />
     </div>
   );
 }
